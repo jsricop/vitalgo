@@ -7,10 +7,9 @@
    - Network:      http://192.168.1.4:3000
 
  ✓ Starting...
- ✓ Ready in 879ms
+ ✓ Ready in 804ms
  ○ Compiling / ...
- ✓ Compiled / in 1313ms
- GET / 200 in 1543ms
- GET / 200 in 36ms
- GET / 200 in 61ms
-[?25h
+ ✓ Compiled / in 1344ms
+ GET / 200 in 1617ms
+ GET / 200 in 42ms
+ GET / 200 in 56ms

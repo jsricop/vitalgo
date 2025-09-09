@@ -12,9 +12,9 @@ class Illness:
     id: UUID
     patient_id: UUID
     name: str  # Name of the illness/condition
-    cie10_code: Optional[str] = None  # International Classification of Diseases code
     status: IllnessStatus
     diagnosed_date: datetime
+    cie10_code: Optional[str] = None  # International Classification of Diseases code
     resolved_date: Optional[datetime] = None
     symptoms: Optional[str] = None
     treatment: Optional[str] = None
