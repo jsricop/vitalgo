@@ -24,3 +24,19 @@
  POST /api/v1/auth/register/patient 404 in 97ms
  POST /api/v1/auth/register/patient 404 in 105ms
  ✓ Compiled in 166ms
+ GET /signup/paciente 200 in 326ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 325ms
+ GET / 200 in 60ms
+ GET /icons/icon-144x144.png 404 in 70ms
+ GET /signup/paciente 200 in 78ms
+ GET /icons/icon-144x144.png 404 in 63ms
+ GET / 200 in 100ms
+ GET /icons/icon-144x144.png 404 in 72ms
+ ✓ Compiled in 108ms
+ ✓ Compiled in 109ms
+ ✓ Compiled in 56ms
+ ✓ Compiled in 54ms
+ ✓ Compiled in 108ms
+ HEAD /signup/paciente 200 in 236ms
+ ✓ Compiled /signup/paramedico in 246ms
+ HEAD /signup/paramedico 200 in 319ms

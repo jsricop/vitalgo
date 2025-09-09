@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertWithIcon } from "@/shared/components/atoms/alert"
 import { InputField, SelectField } from "@/shared/components/molecules/form-field"
 import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
-import { Heart, ArrowRight, Eye, EyeOff } from "lucide-react"
+import { Heart, ArrowRight, Eye, EyeOff, CheckCircle, X } from "lucide-react"
 
 const tiposDocumento = [
   { value: "CC", label: "Cédula de Ciudadanía" },
@@ -30,6 +31,7 @@ const tiposSangre = [
 ]
 
 export default function SignupPacientePage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -47,6 +49,13 @@ export default function SignupPacientePage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [signupError, setSignupError] = useState("")
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [registeredData, setRegisteredData] = useState<any>(null)
+
+  const handleGoToLogin = () => {
+    setShowSuccessModal(false)
+    router.push('/login')
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -150,6 +159,10 @@ export default function SignupPacientePage() {
 
       const data = await response.json()
       console.log("Registro exitoso:", data)
+      
+      // Mostrar modal de éxito
+      setRegisteredData(data)
+      setShowSuccessModal(true)
       
     } catch (error) {
       setSignupError("Error al registrar la cuenta. Inténtalo de nuevo.")
@@ -355,6 +368,67 @@ export default function SignupPacientePage() {
           </Card>
         </div>
       </div>
+
+      {/* Modal de éxito */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
+            {/* Botón cerrar */}
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Contenido del modal */}
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                ¡Registro Exitoso!
+              </h3>
+
+              <p className="text-gray-600 mb-6">
+                Tu cuenta ha sido creada exitosamente. Ya puedes iniciar sesión con tus credenciales.
+              </p>
+
+              {registeredData && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                  <h4 className="font-medium text-gray-900 mb-2">Datos registrados:</h4>
+                  <p className="text-sm text-gray-600">
+                    <strong>Nombre:</strong> {registeredData.user?.first_name} {registeredData.user?.last_name}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Email:</strong> {registeredData.user?.email}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Tipo de sangre:</strong> {registeredData.patient?.blood_type}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowSuccessModal(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cerrar
+                </Button>
+                <Button
+                  onClick={handleGoToLogin}
+                  className="flex-1 bg-vitalgo-green hover:bg-vitalgo-green/90"
+                >
+                  Ir al Login
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   )
 }
