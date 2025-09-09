@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import jwt
 from passlib.context import CryptContext
 
@@ -127,18 +127,60 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+# Mock implementations for testing
+class MockCommandHandlers:
+    async def handle_create_user(self, command):
+        # Mock user creation
+        from dataclasses import dataclass
+        
+        @dataclass
+        class MockUserDto:
+            id: str
+            email: str
+            first_name: str
+            last_name: str
+            role: str
+        
+        return MockUserDto(
+            id="user_123",
+            email=command.email,
+            first_name=command.first_name,
+            last_name=command.last_name,
+            role=command.role
+        )
+    
+    async def handle_create_patient(self, command):
+        # Mock patient creation
+        from dataclasses import dataclass
+        
+        @dataclass
+        class MockPatientDto:
+            id: str
+            user_id: str
+            document_number: str
+            blood_type: str
+        
+        return MockPatientDto(
+            id="patient_123",
+            user_id=command.user_id,
+            document_number=command.document_number,
+            blood_type=command.blood_type
+        )
+
+class MockQueryHandlers:
+    async def handle_validate_credentials(self, query):
+        # Always return None for testing - login won't work but registration will
+        return None
+
 # Dependency injection placeholders
-# In a real implementation, these would be injected through a DI container
-async def get_command_handlers() -> PatientCommandHandlers:
+async def get_command_handlers():
     """Get command handlers instance"""
-    # This is a placeholder - in production, use proper dependency injection
-    pass
+    return MockCommandHandlers()
 
 
-async def get_query_handlers() -> PatientQueryHandlers:
+async def get_query_handlers():
     """Get query handlers instance"""
-    # This is a placeholder - in production, use proper dependency injection
-    pass
+    return MockQueryHandlers()
 
 
 @router.post("/register/patient", response_model=dict)

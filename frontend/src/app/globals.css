@@ -3,6 +3,44 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* VitalGo Brand Colors */
+  --vitalgo-green: #01EF7F;
+  --vitalgo-green-light: #5AF4AC;
+  --vitalgo-green-lighter: #99F9CC;
+  --vitalgo-green-lightest: #CCFCE5;
+  
+  --vitalgo-dark: #002C41;
+  --vitalgo-dark-light: #406171;
+  --vitalgo-dark-lighter: #99ABB3;
+  --vitalgo-dark-lightest: #CCD5D9;
+  
+  /* Shadcn/ui CSS variables */
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --radius: 0.5rem;
+  
+  --primary: 222.2 84% 4.9%;
+  --primary-foreground: 210 40% 98%;
+  
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  
+  --accent: 210 40% 96%;
+  --accent-foreground: 222.2 84% 4.9%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
 }
 
 @theme inline {
@@ -10,6 +48,36 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* VitalGo Colors */
+  --color-vitalgo-green: var(--vitalgo-green);
+  --color-vitalgo-green-light: var(--vitalgo-green-light);
+  --color-vitalgo-green-lighter: var(--vitalgo-green-lighter);
+  --color-vitalgo-green-lightest: var(--vitalgo-green-lightest);
+  
+  --color-vitalgo-dark: var(--vitalgo-dark);
+  --color-vitalgo-dark-light: var(--vitalgo-dark-light);
+  --color-vitalgo-dark-lighter: var(--vitalgo-dark-lighter);
+  --color-vitalgo-dark-lightest: var(--vitalgo-dark-lightest);
+  
+  /* Shadcn/ui Colors */
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 }
 
 @media (prefers-color-scheme: dark) {
