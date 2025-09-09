@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 
 from pydantic_settings import BaseSettings
 
@@ -6,18 +7,18 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings using Pydantic."""
 
-    # Database (PostgreSQL 17)
-    database_url: str = (
-        "postgresql+asyncpg://backend_user:backend_pass@localhost:5432/backend_db"
-    )
+    # Database (PostgreSQL 17) - SECURE VERSION
+    # NEVER hardcode credentials - always use environment variables
+    database_url: str
     database_pool_size: int = 10
     database_max_overflow: int = 20
 
     # Redis 7.4
     redis_url: str = "redis://localhost:6379/0"
 
-    # Security
-    secret_key: str = "your-secret-key-change-in-production"
+    # Security - SECURE VERSION
+    # NEVER hardcode secrets - always use environment variables
+    secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 

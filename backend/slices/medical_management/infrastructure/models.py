@@ -139,6 +139,18 @@ class PatientQRCode(Base):
     patient = relationship("Patient", back_populates="qr_codes")
 
 
+class EPS(Base):
+    __tablename__ = "eps"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(200), nullable=False, unique=True)
+    code = Column(String(50), nullable=False, unique=True)
+    regime_type = Column(String(20), nullable=False)  # "contributivo", "subsidiado", "ambos"
+    status = Column(String(20), nullable=False, default="activa")  # "activa", "inactiva", "liquidacion"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
 class QRAccessLog(Base):
     __tablename__ = "qr_access_logs"
     

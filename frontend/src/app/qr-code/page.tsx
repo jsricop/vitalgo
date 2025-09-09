@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,15 +21,19 @@ import {
   Smartphone
 } from "lucide-react"
 
-const mockPatient = {
-  id: "123",
-  nombre: "Juan Carlos Pérez",
-  qr_code: "VG-123-ABC-789",
-  last_generated: "2024-01-15T10:30:00Z"
+interface PatientData {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  qr_code?: string
+  qr_generated_at?: string
 }
 
 export default function QRCodePage() {
-  const [patient] = useState(mockPatient)
+  const router = useRouter()
+  const [patient, setPatient] = useState<PatientData | null>(null)
   const [qrCodeUrl, setQrCodeUrl] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -44,14 +49,87 @@ export default function QRCodePage() {
     setError("")
     
     try {
-      // Simular carga del QR existente
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Check authentication
+      const token = localStorage.getItem('access_token')
+      const userData = localStorage.getItem('user_data')
       
-      // En un caso real, aquí se haría la petición al backend
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://vitalgo.com/emergency/${patient.qr_code}`)}`
-      setQrCodeUrl(qrUrl)
+      if (!token || !userData) {
+        router.push('/login')
+        return
+      }
+
+      const user = JSON.parse(userData)
+      
+      // Get current user data from API
+      const userResponse = await fetch('http://localhost:8000/api/v1/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!userResponse.ok) {
+        throw new Error('Error al obtener datos del usuario')
+      }
+
+      const currentUser = await userResponse.json()
+      
+      // Get or generate QR code
+      try {
+        const qrResponse = await fetch('http://localhost:8000/api/v1/qr/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ expires_in_days: 365 })
+        })
+
+        if (qrResponse.ok) {
+          const qrData = await qrResponse.json()
+          setPatient({
+            id: currentUser.id,
+            first_name: currentUser.first_name,
+            last_name: currentUser.last_name,
+            email: currentUser.email,
+            phone: currentUser.phone,
+            qr_code: qrData.qr_token,
+            qr_generated_at: qrData.expires_at
+          })
+          
+          // Use the QR image from backend directly or create external URL
+          if (qrData.qr_image) {
+            setQrCodeUrl(qrData.qr_image)
+          } else {
+            // Fallback to external service
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData.access_url || `http://localhost:3000/emergency/${qrData.qr_token}`)}`
+            setQrCodeUrl(qrUrl)
+          }
+        } else {
+          // If QR doesn't exist or there's an error, set patient data without QR
+          console.warn('QR Code not available or error:', qrResponse.status, qrResponse.statusText)
+          setPatient({
+            id: currentUser.id,
+            first_name: currentUser.first_name,
+            last_name: currentUser.last_name,
+            email: currentUser.email,
+            phone: currentUser.phone
+          })
+        }
+      } catch (qrError) {
+        // If QR API fails, still show patient data
+        console.error('Error calling QR API:', qrError)
+        setPatient({
+          id: currentUser.id,
+          first_name: currentUser.first_name,
+          last_name: currentUser.last_name,
+          email: currentUser.email,
+          phone: currentUser.phone
+        })
+      }
       
     } catch (error) {
+      console.error('Error loading QR code:', error)
       setError("Error al cargar el código QR")
     } finally {
       setIsLoading(false)
@@ -67,14 +145,49 @@ export default function QRCodePage() {
     setError("")
 
     try {
-      // Simular generación de nuevo QR
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      const qrResponse = await fetch('http://localhost:8000/api/v1/qr/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ expires_in_days: 365 })
+      })
+
+      if (!qrResponse.ok) {
+        const errorData = await qrResponse.json().catch(() => ({ message: 'Error desconocido' }))
+        console.error('QR Generation Error:', errorData)
+        throw new Error(errorData.message || `Error ${qrResponse.status}: ${qrResponse.statusText}`)
+      }
+
+      const qrData = await qrResponse.json()
       
-      const newCode = `VG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://vitalgo.com/emergency/${newCode}`)}`
-      setQrCodeUrl(qrUrl)
+      // Update patient data with new QR
+      if (patient) {
+        setPatient({
+          ...patient,
+          qr_code: qrData.qr_token,
+          qr_generated_at: qrData.expires_at
+        })
+      }
+      
+      // Use the QR image from backend directly or create external URL
+      if (qrData.qr_image) {
+        setQrCodeUrl(qrData.qr_image)
+      } else {
+        // Fallback to external service
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData.access_url || `http://localhost:3000/emergency/${qrData.qr_token}`)}`
+        setQrCodeUrl(qrUrl)
+      }
       
     } catch (error) {
+      console.error('Error generating new QR:', error)
       setError("Error al generar nuevo código QR")
     } finally {
       setIsGenerating(false)
@@ -82,10 +195,10 @@ export default function QRCodePage() {
   }
 
   const downloadQR = () => {
-    if (qrCodeUrl) {
+    if (qrCodeUrl && patient) {
       const link = document.createElement('a')
       link.href = qrCodeUrl
-      link.download = `VitalGo_QR_${patient.nombre.replace(/\s+/g, '_')}.png`
+      link.download = `VitalGo_QR_${patient.first_name}_${patient.last_name}.png`.replace(/\s+/g, '_')
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -93,8 +206,10 @@ export default function QRCodePage() {
   }
 
   const copyToClipboard = async () => {
+    if (!patient?.qr_code) return
+    
     try {
-      await navigator.clipboard.writeText(`https://vitalgo.com/emergency/${patient.qr_code}`)
+      await navigator.clipboard.writeText(`http://localhost:3000/emergency/${patient.qr_code}`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
@@ -103,12 +218,12 @@ export default function QRCodePage() {
   }
 
   const shareQR = async () => {
-    if (navigator.share && qrCodeUrl) {
+    if (navigator.share && qrCodeUrl && patient?.qr_code) {
       try {
         await navigator.share({
           title: 'Mi Código QR VitalGo',
           text: 'Código QR de emergencia médica - VitalGo',
-          url: `https://vitalgo.com/emergency/${patient.qr_code}`
+          url: `http://localhost:3000/emergency/${patient.qr_code}`
         })
       } catch (error) {
         console.error('Error sharing:', error)
@@ -119,8 +234,23 @@ export default function QRCodePage() {
     }
   }
 
+  if (!patient) {
+    return (
+      <MainLayout isAuthenticated={true} user={{ name: "Usuario", role: "patient" }}>
+        <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white">
+          <div className="container mx-auto px-4 py-8">
+            <div className="text-center">
+              <Spinner size="lg" />
+              <p className="text-gray-600 mt-4">Cargando información del usuario...</p>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <MainLayout isAuthenticated={true} user={{ name: patient.nombre, role: "patient" }}>
+    <MainLayout isAuthenticated={true} user={{ name: `${patient.first_name} ${patient.last_name}`, role: "patient" }}>
       <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
@@ -190,17 +320,25 @@ export default function QRCodePage() {
                   {/* QR Info */}
                   <div className="space-y-2">
                     <p className="text-lg font-medium text-gray-900">
-                      {patient.nombre}
+                      {patient.first_name} {patient.last_name}
                     </p>
-                    <p className="text-sm text-gray-600 font-mono bg-gray-100 inline-block px-3 py-1 rounded">
-                      {patient.qr_code}
-                    </p>
-                    <div className="flex items-center justify-center space-x-1 text-sm text-gray-500">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        Generado: {new Date(patient.last_generated).toLocaleDateString('es-CO')}
-                      </span>
-                    </div>
+                    {patient.qr_code ? (
+                      <>
+                        <p className="text-sm text-gray-600 font-mono bg-gray-100 inline-block px-3 py-1 rounded">
+                          {patient.qr_code}
+                        </p>
+                        <div className="flex items-center justify-center space-x-1 text-sm text-gray-500">
+                          <Clock className="h-4 w-4" />
+                          <span>
+                            Generado: {patient.qr_generated_at ? new Date(patient.qr_generated_at).toLocaleDateString('es-CO') : 'Fecha no disponible'}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Genera tu primer código QR para emergencias
+                      </p>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -233,12 +371,14 @@ export default function QRCodePage() {
                       )}
                     </Button>
 
-                    <Link href={`/emergency/${patient.qr_code}`}>
-                      <Button variant="outline">
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver página
-                      </Button>
-                    </Link>
+                    {patient.qr_code && (
+                      <Link href={`/emergency/${patient.qr_code}`}>
+                        <Button variant="outline">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver página
+                        </Button>
+                      </Link>
+                    )}
                   </div>
 
                   {/* Generate New */}

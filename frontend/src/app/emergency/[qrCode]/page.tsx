@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertWithIcon } from "@/shared/components/atoms/alert"
 import { Spinner } from "@/shared/components/atoms/spinner"
-import { MainLayout } from "@/shared/components/templates/main-layout"
 import { 
   Heart, 
   AlertTriangle, 
@@ -23,41 +22,53 @@ import {
   MapPin,
   Scissors,
   Lock,
-  Unlock
+  Unlock,
+  ArrowLeft,
+  Home
 } from "lucide-react"
 
-const mockPatientData = {
-  id: "123",
-  nombre: "Juan Carlos Pérez",
-  tipo_documento: "CC",
-  numero_documento: "1234567890",
-  telefono: "3001234567",
-  fecha_nacimiento: "1985-06-15",
-  tipo_sangre: "O+",
-  eps: "Sura EPS",
-  contacto_emergencia: {
-    nombre: "María Pérez",
-    relacion: "Esposa",
-    telefono: "3009876543"
-  },
-  alergias: [
-    { nombre: "Penicilina", severidad: "ALTA", notas: "Reacción cutánea severa" },
-    { nombre: "Polen", severidad: "MEDIA", notas: "Rinitis alérgica estacional" }
-  ],
-  enfermedades: [
-    { nombre: "Hipertensión", cie10_code: "I10", estado: "ACTIVA", fecha_diagnostico: "2020-03-10" },
-    { nombre: "Diabetes tipo 2", cie10_code: "E11", estado: "CONTROLADA", fecha_diagnostico: "2019-08-22" }
-  ],
-  cirugias: [
-    { nombre: "Apendicectomía", fecha: "2018-05-12", hospital: "Hospital San Juan", notas: "Sin complicaciones" }
-  ]
+interface PatientData {
+  id: string
+  first_name: string
+  last_name: string
+  document_type: string
+  document_number: string
+  phone: string
+  birth_date: string
+  gender: string
+  blood_type: string
+  eps: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  allergies?: Array<{
+    allergen: string
+    severity: string
+    symptoms: string
+    treatment: string
+    diagnosed_date: string
+    notes: string
+  }>
+  illnesses?: Array<{
+    illness_name: string
+    cie10_code: string
+    diagnosis_date: string
+    status: string
+    notes: string
+  }>
+  surgeries?: Array<{
+    surgery_name: string
+    surgery_date: string
+    hospital: string
+    surgeon: string
+    notes: string
+  }>
 }
 
 export default function EmergencyPage() {
   const params = useParams()
   const qrCode = params?.qrCode as string
 
-  const [patientData, setPatientData] = useState<any>(null)
+  const [patientData, setPatientData] = useState<PatientData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -67,23 +78,150 @@ export default function EmergencyPage() {
 
   useEffect(() => {
     loadPatientData()
+    checkAuthenticationStatus()
   }, [qrCode])
+
+  const checkAuthenticationStatus = async () => {
+    const token = localStorage.getItem('access_token')
+    const userData = localStorage.getItem('user_data')
+    
+    if (!token || !userData) {
+      setIsAuthenticated(false)
+      return
+    }
+
+    try {
+      // Verify token is still valid and get current user info
+      const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        // Token is invalid, clear localStorage
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('user_data')
+        localStorage.removeItem('user_role')
+        setIsAuthenticated(false)
+        return
+      }
+
+      const currentUser = await response.json()
+      
+      // Only allow access if user is a paramedic OR the patient who owns this QR
+      if (currentUser.role === 'paramedic') {
+        setIsAuthenticated(true)
+        return
+      }
+
+      // If it's a patient, we need to verify they own this QR code
+      if (currentUser.role === 'patient') {
+        // For now, we'll need to implement QR ownership verification
+        // This would require checking if the current patient's QR token matches the URL
+        // For security, this verification should be done on the backend
+        await verifyPatientQROwnership(currentUser.id, token)
+        return
+      }
+
+      // Admin users should also have access
+      if (currentUser.role === 'admin') {
+        setIsAuthenticated(true)
+        return
+      }
+
+      // Any other role is not allowed
+      setIsAuthenticated(false)
+      
+    } catch (error) {
+      console.error('Error validating authentication:', error)
+      setIsAuthenticated(false)
+    }
+  }
+
+  const verifyPatientQROwnership = async (patientId: string, token: string) => {
+    try {
+      // This would be an endpoint to verify QR ownership
+      // For now, we'll implement a basic check but this should be secured on backend
+      const response = await fetch(`http://localhost:8000/api/v1/qr/verify-ownership/${qrCode}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setIsAuthenticated(data.isOwner === true)
+      } else {
+        setIsAuthenticated(false)
+      }
+    } catch (error) {
+      console.error('Error verifying QR ownership:', error)
+      setIsAuthenticated(false)
+    }
+  }
+
+  const BackButton = () => (
+    <div className="absolute top-4 left-4">
+      <Link href={isAuthenticated ? "/dashboard" : "/"}>
+        <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+          {isAuthenticated ? <ArrowLeft className="h-4 w-4" /> : <Home className="h-4 w-4" />}
+          <span>{isAuthenticated ? "Volver al Dashboard" : "Ir a VitalGo"}</span>
+        </Button>
+      </Link>
+    </div>
+  )
 
   const loadPatientData = async () => {
     setIsLoading(true)
     setError("")
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
       if (!qrCode || qrCode === 'invalid') {
         throw new Error("Código QR inválido")
       }
 
-      setPatientData(mockPatientData)
+      const token = localStorage.getItem('access_token')
       
-    } catch (error) {
-      setError("No se pudo cargar la información del paciente. Verifica que el código QR sea válido.")
+      if (!token) {
+        // If no token, only show basic emergency info (no sensitive data)
+        setError("Se requiere autenticación para ver la información médica completa")
+        return
+      }
+
+      // Get patient data from QR code with authentication
+      const response = await fetch(`http://localhost:8000/api/v1/qr/emergency/${qrCode}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token is invalid or expired
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('user_data') 
+          localStorage.removeItem('user_role')
+          throw new Error("Sesión expirada. Por favor, inicie sesión nuevamente")
+        }
+        if (response.status === 403) {
+          throw new Error("No tiene permisos para acceder a esta información médica")
+        }
+        if (response.status === 404) {
+          throw new Error("Código QR no encontrado o inválido")
+        }
+        throw new Error("Error al cargar información del paciente")
+      }
+
+      const data = await response.json()
+      setPatientData(data.patient)
+      
+    } catch (error: any) {
+      console.error('Error loading patient data:', error)
+      setError(error.message || "No se pudo cargar la información del paciente. Verifica que el código QR sea válido.")
     } finally {
       setIsLoading(false)
     }
@@ -94,14 +232,40 @@ export default function EmergencyPage() {
     setLoginError("")
 
     try {
-      if (loginData.email && loginData.password) {
-        setIsAuthenticated(true)
-        setShowLoginForm(false)
-      } else {
+      if (!loginData.email || !loginData.password) {
         setLoginError("Email y contraseña son requeridos")
+        return
       }
-    } catch (error) {
-      setLoginError("Credenciales inválidas")
+
+      const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: loginData.email,
+          password: loginData.password
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Credenciales inválidas")
+      }
+
+      const data = await response.json()
+      
+      // Check if user is a paramedic
+      if (data.role !== 'paramedic') {
+        setLoginError("Solo paramédicos pueden acceder a esta información")
+        return
+      }
+
+      setIsAuthenticated(true)
+      setShowLoginForm(false)
+      
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setLoginError(error.message || "Error al iniciar sesión")
     }
   }
 
@@ -114,6 +278,10 @@ export default function EmergencyPage() {
       age--
     }
     return age
+  }
+
+  const getPatientFullName = (patient: PatientData) => {
+    return `${patient.first_name} ${patient.last_name}`
   }
 
   const getSeverityColor = (severidad: string) => {
@@ -136,43 +304,41 @@ export default function EmergencyPage() {
 
   if (isLoading) {
     return (
-      <MainLayout showFooter={false}>
-        <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white flex items-center justify-center">
-          <div className="text-center">
-            <Spinner size="lg" className="mb-4" />
-            <p className="text-gray-600">Cargando información médica...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white flex items-center justify-center relative">
+        <BackButton />
+        <div className="text-center">
+          <Spinner size="lg" className="mb-4" />
+          <p className="text-gray-600">Cargando información médica...</p>
         </div>
-      </MainLayout>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <MainLayout showFooter={false}>
-        <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <CardContent className="p-8 text-center">
-              <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Código QR Inválido</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
-              <Link href="/">
-                <Button className="bg-vitalgo-green hover:bg-vitalgo-green/90">
-                  Ir a VitalGo
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </MainLayout>
+      <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white flex items-center justify-center p-4 relative">
+        <BackButton />
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Código QR Inválido</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <Link href={isAuthenticated ? "/dashboard" : "/"}>
+              <Button className="bg-vitalgo-green hover:bg-vitalgo-green/90">
+                {isAuthenticated ? "Volver al Dashboard" : "Ir a VitalGo"}
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   if (!isAuthenticated && patientData) {
     return (
-      <MainLayout showFooter={false}>
-        <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white">
-          <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white relative">
+        <BackButton />
+        <div className="container mx-auto px-4 py-8">
             {/* Emergency Header */}
             <div className="text-center mb-8">
               <div className="flex items-center justify-center space-x-2 mb-4">
@@ -182,7 +348,7 @@ export default function EmergencyPage() {
                 <h1 className="text-3xl font-bold text-red-600">EMERGENCIA MÉDICA</h1>
               </div>
               <p className="text-lg text-gray-700">
-                Información médica de emergencia para <strong>{patientData.nombre}</strong>
+                Información médica de emergencia para <strong>{getPatientFullName(patientData)}</strong>
               </p>
             </div>
 
@@ -202,15 +368,15 @@ export default function EmergencyPage() {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <User className="h-4 w-4 text-gray-500" />
-                          <span><strong>Nombre:</strong> {patientData.nombre}</span>
+                          <span><strong>Nombre:</strong> {getPatientFullName(patientData)}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4 text-gray-500" />
-                          <span><strong>Edad:</strong> {calculateAge(patientData.fecha_nacimiento)} años</span>
+                          <span><strong>Edad:</strong> {calculateAge(patientData.birth_date)} años</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Droplets className="h-4 w-4 text-gray-500" />
-                          <span><strong>Tipo de Sangre:</strong> {patientData.tipo_sangre}</span>
+                          <span><strong>Tipo de Sangre:</strong> {patientData.blood_type}</span>
                         </div>
                       </div>
                     </div>
@@ -220,11 +386,11 @@ export default function EmergencyPage() {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <User className="h-4 w-4 text-gray-500" />
-                          <span><strong>{patientData.contacto_emergencia.relacion}:</strong> {patientData.contacto_emergencia.nombre}</span>
+                          <span><strong>Contacto:</strong> {patientData.emergency_contact_name || 'No disponible'}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Phone className="h-4 w-4 text-gray-500" />
-                          <span><strong>Teléfono:</strong> {patientData.contacto_emergencia.telefono}</span>
+                          <span><strong>Teléfono:</strong> {patientData.emergency_contact_phone || 'No disponible'}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Building2 className="h-4 w-4 text-gray-500" />
@@ -235,18 +401,18 @@ export default function EmergencyPage() {
                   </div>
 
                   {/* Critical Allergies */}
-                  {patientData.alergias.filter((a: any) => a.severidad === "ALTA").length > 0 && (
+                  {patientData.allergies && patientData.allergies.filter((a) => a.severity === "ALTA").length > 0 && (
                     <div className="mt-6 p-4 bg-red-100 border border-red-300 rounded-lg">
                       <h3 className="font-bold text-red-800 mb-2 flex items-center space-x-2">
                         <AlertTriangle className="h-5 w-5" />
                         <span>ALERGIAS CRÍTICAS</span>
                       </h3>
                       <div className="space-y-1">
-                        {patientData.alergias
-                          .filter((alergia: any) => alergia.severidad === "ALTA")
-                          .map((alergia: any, index: number) => (
+                        {patientData.allergies
+                          .filter((allergy) => allergy.severity === "ALTA")
+                          .map((allergy, index) => (
                             <div key={index} className="text-red-800 font-medium">
-                              • {alergia.nombre} - {alergia.notas}
+                              • {allergy.allergen} - {allergy.notes}
                             </div>
                           ))}
                       </div>
@@ -355,20 +521,15 @@ export default function EmergencyPage() {
               </Card>
             </div>
           </div>
-        </div>
-      </MainLayout>
+      </div>
     )
   }
 
   // Full medical information for authenticated paramedics
   return (
-    <MainLayout 
-      isAuthenticated={true} 
-      user={{ name: "Paramédico Autorizado", role: "paramedic" }}
-      showFooter={false}
-    >
-      <div className="min-h-screen bg-gradient-to-br from-white via-green-50 to-white">
-        <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-white via-green-50 to-white relative">
+      <BackButton />
+      <div className="container mx-auto px-4 py-8">
           {/* Success Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
@@ -378,7 +539,7 @@ export default function EmergencyPage() {
               <h1 className="text-3xl font-bold text-green-600">ACCESO AUTORIZADO</h1>
             </div>
             <p className="text-lg text-gray-700">
-              Historial médico completo de <strong>{patientData.nombre}</strong>
+              Historial médico completo de <strong>{getPatientFullName(patientData)}</strong>
             </p>
           </div>
 
@@ -394,19 +555,19 @@ export default function EmergencyPage() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-600">Nombre completo</p>
-                  <p className="font-medium">{patientData.nombre}</p>
+                  <p className="font-medium">{getPatientFullName(patientData)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Documento</p>
-                  <p className="font-medium">{patientData.tipo_documento}: {patientData.numero_documento}</p>
+                  <p className="font-medium">{patientData.document_type}: {patientData.document_number}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Edad</p>
-                  <p className="font-medium">{calculateAge(patientData.fecha_nacimiento)} años</p>
+                  <p className="font-medium">{calculateAge(patientData.birth_date)} años</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Tipo de Sangre</p>
-                  <p className="font-medium text-red-600 text-lg">{patientData.tipo_sangre}</p>
+                  <p className="font-medium text-red-600 text-lg">{patientData.blood_type}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">EPS</p>
@@ -414,7 +575,7 @@ export default function EmergencyPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Teléfono</p>
-                  <p className="font-medium">{patientData.telefono}</p>
+                  <p className="font-medium">{patientData.phone}</p>
                 </div>
               </CardContent>
             </Card>
@@ -427,16 +588,16 @@ export default function EmergencyPage() {
                   <CardTitle className="text-red-600">Alergias</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {patientData.alergias.length > 0 ? (
+                  {patientData.allergies && patientData.allergies.length > 0 ? (
                     <div className="space-y-3">
-                      {patientData.alergias.map((alergia: any, index: number) => (
+                      {patientData.allergies.map((allergy, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                           <div>
-                            <p className="font-medium text-red-800">{alergia.nombre}</p>
-                            <p className="text-sm text-red-600">{alergia.notas}</p>
+                            <p className="font-medium text-red-800">{allergy.allergen}</p>
+                            <p className="text-sm text-red-600">{allergy.notes}</p>
                           </div>
-                          <Badge className={getSeverityColor(alergia.severidad)}>
-                            {alergia.severidad}
+                          <Badge className={getSeverityColor(allergy.severity)}>
+                            {allergy.severity}
                           </Badge>
                         </div>
                       ))}
@@ -456,19 +617,19 @@ export default function EmergencyPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {patientData.enfermedades.length > 0 ? (
+                  {patientData.illnesses && patientData.illnesses.length > 0 ? (
                     <div className="space-y-3">
-                      {patientData.enfermedades.map((enfermedad: any, index: number) => (
+                      {patientData.illnesses.map((illness, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
-                            <p className="font-medium">{enfermedad.nombre}</p>
+                            <p className="font-medium">{illness.illness_name}</p>
                             <p className="text-sm text-gray-600">
-                              CIE-10: {enfermedad.cie10_code} | 
-                              Diagnosticada: {new Date(enfermedad.fecha_diagnostico).toLocaleDateString('es-CO')}
+                              CIE-10: {illness.cie10_code} | 
+                              Diagnosticada: {new Date(illness.diagnosis_date).toLocaleDateString('es-CO')}
                             </p>
                           </div>
-                          <Badge className={getStatusColor(enfermedad.estado)}>
-                            {enfermedad.estado}
+                          <Badge className={getStatusColor(illness.status)}>
+                            {illness.status}
                           </Badge>
                         </div>
                       ))}
@@ -488,22 +649,22 @@ export default function EmergencyPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {patientData.cirugias.length > 0 ? (
+                  {patientData.surgeries && patientData.surgeries.length > 0 ? (
                     <div className="space-y-3">
-                      {patientData.cirugias.map((cirugia: any, index: number) => (
+                      {patientData.surgeries.map((surgery, index) => (
                         <div key={index} className="p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center justify-between mb-2">
-                            <p className="font-medium">{cirugia.nombre}</p>
+                            <p className="font-medium">{surgery.surgery_name}</p>
                             <p className="text-sm text-gray-600">
-                              {new Date(cirugia.fecha).toLocaleDateString('es-CO')}
+                              {new Date(surgery.surgery_date).toLocaleDateString('es-CO')}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2 text-sm text-gray-600">
                             <MapPin className="h-4 w-4" />
-                            <span>{cirugia.hospital}</span>
+                            <span>{surgery.hospital}</span>
                           </div>
-                          {cirugia.notas && (
-                            <p className="text-sm text-gray-500 mt-1">{cirugia.notas}</p>
+                          {surgery.notes && (
+                            <p className="text-sm text-gray-500 mt-1">{surgery.notes}</p>
                           )}
                         </div>
                       ))}
@@ -523,8 +684,7 @@ export default function EmergencyPage() {
               Información consultada el {new Date().toLocaleDateString('es-CO')} a las {new Date().toLocaleTimeString('es-CO')}
             </p>
           </div>
-        </div>
       </div>
-    </MainLayout>
+    </div>
   )
 }

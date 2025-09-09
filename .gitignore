@@ -50,6 +50,10 @@ config/production.py
 config/local.py
 secrets.json
 
+# Test credentials (DO NOT COMMIT)
+CREDENTIALS_TEST.md
+*CREDENTIALS*.md
+
 # Test coverage
 coverage/
 .coverage

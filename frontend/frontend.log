@@ -7,36 +7,13 @@
    - Network:      http://192.168.1.4:3000
 
  ✓ Starting...
- ✓ Ready in 806ms
- ○ Compiling / ...
- ✓ Compiled / in 1463ms
- GET / 200 in 1748ms
- GET / 200 in 78ms
- HEAD / 200 in 172ms
- ○ Compiling /signup/paciente ...
- ✓ Compiled /signup/paciente in 715ms
- GET /signup/paciente 200 in 831ms
- ✓ Compiled /favicon.ico in 302ms
- GET /favicon.ico?favicon.0b3bf435.ico 200 in 579ms
- GET /signup/paciente 200 in 52ms
- ✓ Compiled /_not-found/page in 217ms
- GET /icons/icon-144x144.png 404 in 278ms
- POST /api/v1/auth/register/patient 404 in 97ms
- POST /api/v1/auth/register/patient 404 in 105ms
- ✓ Compiled in 166ms
- GET /signup/paciente 200 in 326ms
- GET /favicon.ico?favicon.0b3bf435.ico 200 in 325ms
- GET / 200 in 60ms
- GET /icons/icon-144x144.png 404 in 70ms
- GET /signup/paciente 200 in 78ms
- GET /icons/icon-144x144.png 404 in 63ms
- GET / 200 in 100ms
- GET /icons/icon-144x144.png 404 in 72ms
- ✓ Compiled in 108ms
- ✓ Compiled in 109ms
- ✓ Compiled in 56ms
- ✓ Compiled in 54ms
- ✓ Compiled in 108ms
- HEAD /signup/paciente 200 in 236ms
- ✓ Compiled /signup/paramedico in 246ms
- HEAD /signup/paramedico 200 in 319ms
+ ✓ Ready in 956ms
+ ○ Compiling /_error ...
+ ⨯ A conflicting public file and page file was found for path /favicon.ico https://nextjs.org/docs/messages/conflicting-public-file-page
+ GET /favicon.ico 500 in 1145ms
+ ⨯ A conflicting public file and page file was found for path /favicon.ico https://nextjs.org/docs/messages/conflicting-public-file-page
+ GET /favicon.ico?favicon.0b3bf435.ico 500 in 42ms
+ ✓ Compiled /_error in 2.6s
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ GET /dashboard 200 in 2086ms
+[?25h

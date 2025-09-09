@@ -167,14 +167,25 @@ export default function SignupParamedicoPage() {
 
   return (
     <MainLayout showFooter={false}>
-      <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Subtle background patterns */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-1/4 w-72 h-72 bg-vitalgo-green/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-400/5 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/3 right-0 w-64 h-64 bg-vitalgo-green/5 rounded-full blur-2xl"></div>
+        </div>
+        <div className="max-w-md w-full space-y-8 relative z-10">
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 mb-8">
-              <div className="w-12 h-12 bg-vitalgo-green rounded-xl flex items-center justify-center">
-                <Heart className="h-7 w-7 text-white" />
+            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
+              <img 
+                src="/logoh-blue-light-background.png" 
+                alt="VitalGo Logo" 
+                className="h-12 w-auto"
+              />
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-vitalgo-dark">VitalGo</span>
+                <span className="text-xs text-gray-600">Diagnóstico rápido y atención prioritaria</span>
               </div>
-              <span className="text-2xl font-bold text-vitalgo-dark">VitalGo</span>
             </Link>
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Shield className="h-6 w-6 text-vitalgo-green" />
@@ -187,7 +198,7 @@ export default function SignupParamedicoPage() {
             </p>
           </div>
 
-          <Card className="shadow-xl border-0">
+          <Card className="shadow-2xl border border-white/20 backdrop-blur-sm bg-white/95">
             <CardHeader className="space-y-1 pb-6">
               <CardTitle className="text-2xl font-normal text-center text-gray-900">
                 Registro Profesional
@@ -357,7 +368,7 @@ export default function SignupParamedicoPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 text-center">
+              <div className="mt-6 text-center space-y-4">
                 <p className="text-sm text-gray-600">
                   ¿Ya tienes una cuenta?{" "}
                   <Link
@@ -367,15 +378,20 @@ export default function SignupParamedicoPage() {
                     Inicia sesión
                   </Link>
                 </p>
-                <p className="text-sm text-gray-600 mt-2">
-                  ¿Eres paciente?{" "}
-                  <Link
-                    href="/signup/paciente"
-                    className="font-medium text-vitalgo-green hover:text-vitalgo-green/80"
-                  >
-                    Regístrate aquí
+                <div className="border-t border-gray-200 pt-4">
+                  <p className="text-sm text-gray-600 mb-3">
+                    ¿No eres profesional de la salud?
+                  </p>
+                  <Link href="/signup/paciente">
+                    <Button
+                      variant="outline"
+                      className="border-vitalgo-green text-vitalgo-green hover:bg-vitalgo-green hover:text-white"
+                    >
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Registrarse como Paciente
+                    </Button>
                   </Link>
-                </p>
+                </div>
               </div>
             </CardContent>
           </Card>

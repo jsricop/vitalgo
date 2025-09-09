@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Corazón verde con cruz -->
+  <g transform="translate(50, 50)">
+    <!-- Corazón -->
+    <path d="M100,80 C100,40 70,20 40,40 C10,20 -20,40 -20,80 C-20,120 100,180 100,180 C100,180 220,120 220,80 C220,40 190,20 160,40 C130,20 100,40 100,80 Z" 
+          fill="#00E676" transform="translate(-100, -30) scale(1.5)"/>
+    
+    <!-- Cruz blanca dentro del corazón -->
+    <g transform="translate(0, 15)">
+      <!-- Brazo vertical de la cruz -->
+      <rect x="90" y="50" width="20" height="60" fill="white" rx="3"/>
+      <!-- Brazo horizontal de la cruz -->
+      <rect x="70" y="70" width="60" height="20" fill="white" rx="3"/>
+    </g>
+  </g>
+  
+  <!-- Texto "VitalGo" -->
+  <text x="350" y="150" font-family="Arial, sans-serif" font-size="140" font-weight="700" fill="#1B3A57">VitalGo</text>
+  
+  <!-- Texto descriptivo -->
+  <text x="50" y="250" font-family="Arial, sans-serif" font-size="32" font-weight="500" fill="#1B3A57">Diagnóstico rápido y atención prioritaria</text>
+</svg>

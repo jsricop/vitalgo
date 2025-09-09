@@ -109,73 +109,73 @@ export function Homepage() {
   const features = [
     {
       icon: <FileText className="h-6 w-6 text-vitalgo-green" />,
-      title: "Historial Médico Unificado",
-      description: "Centraliza toda tu información médica en una sola plataforma segura y accesible desde cualquier dispositivo.",
+      title: "Tu Historial Siempre Contigo",
+      description: "Toda tu información médica organizada en un solo lugar. Consulta tus datos desde cualquier dispositivo cuando los necesites.",
       badge: "Popular"
     },
     {
       icon: <QrCode className="h-6 w-6 text-vitalgo-green" />,
-      title: "QR de Emergencia",
-      description: "Acceso inmediato a tu información médica crítica en situaciones de emergencia, disponible 24/7 sin internet.",
-      badge: "Innovador"
+      title: "QR para Emergencias",
+      description: "Un código QR que puede salvarte la vida. Los paramédicos acceden al instante a tus alergias y condiciones médicas críticas.",
+      badge: "Vital"
     },
     {
-      icon: <Brain className="h-6 w-6 text-vitalgo-green" />,
-      title: "IA Médica Avanzada",
-      description: "Triaje inteligente y transcripción automática que optimiza la atención médica y reduce tiempos de espera hasta 70%."
+      icon: <Clock className="h-6 w-6 text-vitalgo-green" />,
+      title: "Consultas Más Rápidas",
+      description: "El médico ya tiene tu historial antes de verte. Consultas más eficientes que te ahorran hasta 70% del tiempo de espera."
     },
     {
       icon: <Shield className="h-6 w-6 text-vitalgo-green" />,
-      title: "Seguridad Hospitalaria",
-      description: "Encriptación AES-256 y cumplimiento total con HIPAA, GDPR y normativas colombianas de protección de datos."
+      title: "Máxima Seguridad",
+      description: "Tus datos médicos protegidos con los más altos estándares de seguridad. Solo tú decides quién puede verlos."
     },
     {
       icon: <Stethoscope className="h-6 w-6 text-vitalgo-green" />,
-      title: "Para Profesionales",
-      description: "Herramientas especializadas para médicos, paramédicos y centros de salud con dashboards inteligentes."
+      title: "Ideal para Profesionales",
+      description: "Si eres médico o paramédico, accede rápidamente a la información de tus pacientes para brindar mejor atención."
     },
     {
       icon: <Smartphone className="h-6 w-6 text-vitalgo-green" />,
-      title: "PWA Offline",
-      description: "Aplicación web progresiva que funciona sin conexión, garantizando acceso a tu información médica siempre."
+      title: "Funciona Sin Internet",
+      description: "Accede a tu información médica básica incluso sin conexión. Siempre disponible cuando más lo necesitas."
     }
   ]
 
   const stats = [
-    { number: "10K+", label: "Pacientes Activos", icon: <Users className="h-5 w-5 text-vitalgo-green" /> },
-    { number: "500+", label: "Centros de Salud", icon: <HeartHandshake className="h-5 w-5 text-vitalgo-green" /> },
-    { number: "70%", label: "Reducción Tiempos", icon: <Clock className="h-5 w-5 text-vitalgo-green" /> },
-    { number: "99.9%", label: "Disponibilidad", icon: <Activity className="h-5 w-5 text-vitalgo-green" /> }
+    { number: "10K+", label: "Pacientes Confían en Nosotros", icon: <Users className="h-5 w-5 text-vitalgo-green" /> },
+    { number: "500+", label: "Centros de Salud Conectados", icon: <HeartHandshake className="h-5 w-5 text-vitalgo-green" /> },
+    { number: "70%", label: "Menos Tiempo de Espera", icon: <Clock className="h-5 w-5 text-vitalgo-green" /> },
+    { number: "24/7", label: "Siempre Disponible", icon: <Activity className="h-5 w-5 text-vitalgo-green" /> }
   ]
 
   const testimonials = [
     {
       name: "Dr. María González",
       role: "Médica Internista - Hospital San Ignacio",
-      content: "VitalGo ha transformado completamente nuestra atención en urgencias. La información está disponible al instante.",
+      content: "VitalGo cambió mi forma de atender urgencias. Ahora tengo la información del paciente al instante, sin esperas ni papeles.",
       rating: 5
     },
     {
       name: "Carlos Rodríguez",
       role: "Paciente Diabético",
-      content: "Por fin tengo todo mi historial médico organizado. El QR de emergencia me da mucha tranquilidad.",
+      content: "Llevaba años cargando carpetas con mis exámenes. Ahora todo está en mi teléfono y mi familia puede acceder si me pasa algo.",
       rating: 5
     },
     {
-      name: "Enf. Ana Patricia Silva",
+      name: "Ana Patricia Silva",
       role: "Paramédica - Cruz Roja Colombia",
-      content: "El scanner QR nos permite actuar más rápido en emergencias. Es una herramienta invaluable.",
+      content: "En emergencias cada segundo cuenta. Con VitalGo veo las alergias y condiciones del paciente antes de llegar al hospital.",
       rating: 5
     }
   ]
 
   const benefits = [
-    "Integración con Odoo ERP para citas médicas",
-    "Scanner QR nativo para paramédicos",
-    "Transcripción automática de consultas",
-    "Métricas en tiempo real para centros de salud",
-    "Notificaciones push inteligentes",
-    "Soporte 24/7 especializado"
+    "✅ Acceso seguro con tu email y contraseña desde cualquier lugar",
+    "✅ Registro gratuito en menos de 2 minutos",
+    "✅ Historial médico completo: alergias, enfermedades y cirugías",
+    "✅ Código QR personal para emergencias médicas",
+    "✅ Panel personalizado según seas paciente o profesional de salud",
+    "✅ Información disponible 24/7 sin necesidad de papeles"
   ]
 
   return (
@@ -189,36 +189,57 @@ export function Homepage() {
         
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center max-w-4xl mx-auto">
+            {/* Logo principal */}
+            <div className="flex justify-center mb-8">
+              <img 
+                src="/logoh-blue-light-background.png" 
+                alt="VitalGo Logo" 
+                className="h-16 w-auto"
+              />
+            </div>
+            
             <Badge className="mb-6 bg-vitalgo-green/10 text-vitalgo-green hover:bg-vitalgo-green/20">
               <Globe className="w-3 h-3 mr-1" />
               Líder en Salud Digital Colombia
             </Badge>
             
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light tracking-tight text-vitalgo-dark mb-6">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light tracking-tight text-vitalgo-dark mb-6">
               Tu salud.
               <br />
               <span className="text-vitalgo-green font-normal">Simplificada.</span>
-            </h1>
+            </h2>
             
             <p className="text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto mb-8">
-              Unifica tu historial médico, optimiza urgencias con IA y mejora la gestión clínica. 
-              La revolución de la salud digital que reduce tiempos de espera hasta <strong className="text-vitalgo-green">70%</strong>.
+              Toda tu información médica en un solo lugar, siempre disponible cuando la necesites. 
+              Acceso inmediato en emergencias y consultas más rápidas que te ahorran hasta <strong className="text-vitalgo-green">70%</strong> del tiempo de espera.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
               <Link href="/signup/paciente">
                 <Button size="lg" className="bg-vitalgo-green hover:bg-vitalgo-green/90 text-white px-8 py-4 text-lg">
-                  Crear mi cuenta gratis
+                  Soy Paciente
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
+              <Link href="/signup/paramedico">
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg"
+                >
+                  Soy Profesional de Salud
+                  <Stethoscope className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="flex justify-center mb-12">
               <Link href="/login">
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-vitalgo-green text-vitalgo-green hover:bg-vitalgo-green hover:text-white px-8 py-4 text-lg"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 px-8 py-4 text-lg"
                 >
-                  Iniciar sesión
+                  Ya tengo cuenta - Iniciar sesión
                 </Button>
               </Link>
             </div>
@@ -241,10 +262,10 @@ export function Homepage() {
               Funcionalidades
             </Badge>
             <h2 className="text-3xl lg:text-4xl font-light text-vitalgo-dark mb-4">
-              Todo lo que necesitas para gestionar tu salud
+              Todo lo que necesitas para cuidar tu salud
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Tecnología de vanguardia diseñada específicamente para el sistema de salud colombiano
+              Herramientas simples y poderosas para que tengas el control total de tu información médica
             </p>
           </div>
 
@@ -268,8 +289,9 @@ export function Homepage() {
                 La plataforma más completa de salud digital
               </h2>
               <p className="text-lg text-gray-600 mb-8">
-                Diseñada con arquitectura hexagonal y principios SOLID para garantizar 
-                escalabilidad, seguridad y una experiencia de usuario excepcional.
+                <strong>Ya disponible para ti:</strong> Crea tu cuenta gratuita y accede inmediatamente a tu historial médico digital. 
+                Registra tus alergias, enfermedades y cirugías de forma segura. Genera tu código QR personal para que los paramédicos 
+                puedan acceder a tu información vital en emergencias. Todo desde cualquier dispositivo, las 24 horas del día.
               </p>
               
               <div className="space-y-4">
@@ -288,9 +310,11 @@ export function Homepage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-vitalgo-green rounded-lg flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">V</span>
-                        </div>
+                        <img 
+                          src="/logoh-blue-light-background.png" 
+                          alt="VitalGo" 
+                          className="h-8 w-auto"
+                        />
                         <span className="font-bold text-vitalgo-dark">Dashboard Médico</span>
                       </div>
                       <Badge className="bg-vitalgo-green text-white">En vivo</Badge>
@@ -331,6 +355,154 @@ export function Homepage() {
         </div>
       </section>
 
+      {/* Use Cases Section */}
+      <section className="py-16 lg:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-vitalgo-green/10 text-vitalgo-green">
+              Ideal Para
+            </Badge>
+            <h2 className="text-3xl lg:text-4xl font-light text-vitalgo-dark mb-4">
+              Perfecto para cualquier situación de tu vida
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              VitalGo se adapta a tu estilo de vida, protegiendo tu salud en cada momento
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Users className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Colegios y Excursiones</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Profesores y padres tienen acceso inmediato a alergias y medicamentos de los estudiantes. 
+                  Esencial para salidas escolares y campamentos.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Activity className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Deportistas</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Ideal para atletas en competencias. Los médicos deportivos acceden rápidamente 
+                  a lesiones previas, alergias a medicamentos y condiciones especiales.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <HeartHandshake className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Empleados</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Empresas pueden implementar VitalGo para emergencias laborales. 
+                  Los brigadistas acceden instantáneamente a información médica crítica.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Globe className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Viajeros</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Viaja tranquilo sabiendo que cualquier hospital en el mundo puede acceder 
+                  a tu historial médico, sin barreras de idioma ni papeles perdidos.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Shield className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Adultos Mayores</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Perfecto para personas con múltiples medicamentos y condiciones. 
+                  Los familiares pueden acceder si hay una emergencia.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Stethoscope className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Personas con Condiciones Crónicas</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Diabetes, hipertensión, epilepsia: toda la información crítica 
+                  siempre disponible para cualquier profesional de salud.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Users className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Familias</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Padres pueden gestionar la información médica de toda la familia. 
+                  Un solo lugar para todos los historiales médicos.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Clock className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Trabajadores de Alto Riesgo</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Mineros, bomberos, policías: profesiones de riesgo donde 
+                  el acceso rápido a información médica puede salvar vidas.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 hover:border-vitalgo-green/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-vitalgo-green/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Activity className="h-8 w-8 text-vitalgo-green" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-3">Motociclistas</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Fundamental para quienes usan moto como transporte diario. 
+                  En accidentes, los paramédicos acceden inmediatamente a tipo de sangre, alergias y contactos de emergencia.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center mt-12">
+            <p className="text-lg text-gray-600 mb-6">
+              <strong>¿Te identificas con alguna de estas situaciones?</strong> VitalGo está diseñado para protegerte en cada momento.
+            </p>
+            <Link href="/signup/paciente">
+              <Button className="bg-vitalgo-green hover:bg-vitalgo-green/90 text-white px-8 py-3">
+                Empieza gratis ahora
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
       <section className="py-16 lg:py-24 bg-gray-50/50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -339,10 +511,10 @@ export function Homepage() {
               Testimonios
             </Badge>
             <h2 className="text-3xl lg:text-4xl font-light text-vitalgo-dark mb-4">
-              Confiado por profesionales de la salud
+              Historias reales de personas como tú
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Miles de médicos y pacientes ya transformaron su experiencia en salud con VitalGo
+              Descubre cómo VitalGo está mejorando la vida de pacientes y profesionales de la salud en Colombia
             </p>
           </div>
 
@@ -359,11 +531,11 @@ export function Homepage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto">
             <h2 className="text-3xl lg:text-4xl font-light text-white mb-6">
-              Comienza tu transformación digital en salud
+              Tu salud merece estar en buenas manos
             </h2>
             <p className="text-xl text-white/90 mb-8">
-              Únete a miles de pacientes y profesionales que ya revolucionaron 
-              su experiencia en salud con tecnología de vanguardia.
+              Únete a miles de personas que ya tienen su información médica segura y siempre disponible. 
+              Es gratis y te toma menos de 2 minutos.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -375,17 +547,17 @@ export function Homepage() {
               </Link>
               <Link href="/signup/paramedico">
                 <Button
-                  variant="outline"
                   size="lg"
-                  className="border-white text-white hover:bg-white hover:text-vitalgo-green px-8 py-4 text-lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-white px-8 py-4 text-lg"
                 >
                   Registrarse como Profesional
+                  <Stethoscope className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             </div>
 
             <p className="text-sm text-white/80 mt-6">
-              Gratis para siempre • Sin tarjeta de crédito • Configuración en 2 minutos
+              Gratis para siempre • Sin tarjeta de crédito • Solo necesitas tu email
             </p>
           </div>
         </div>

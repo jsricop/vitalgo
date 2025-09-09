@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Menu, X, Heart, User, LogOut, Settings, QrCode } from "lucide-react"
@@ -16,19 +17,40 @@ interface HeaderProps {
 
 export function Header({ isAuthenticated = false, user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const router = useRouter()
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
+
+  const handleSignOut = () => {
+    // Clear all authentication data
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user_data')
+    localStorage.removeItem('user_role')
+    
+    // Redirect to homepage
+    router.push('/')
+  }
+
+  const getRoleInSpanish = (role: string) => {
+    switch (role) {
+      case 'patient': return 'Paciente'
+      case 'paramedic': return 'Paramédico'
+      case 'admin': return 'Administrador'
+      default: return role
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-vitalgo-green rounded-lg flex items-center justify-center">
-              <Heart className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-vitalgo-dark">VitalGo</span>
+          <Link href="/" className="flex items-center">
+            <img 
+              src="/logoh-blue-light-background.png" 
+              alt="VitalGo Logo" 
+              className="h-8 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -73,6 +95,13 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                     </Link>
                   </>
                 )}
+                {user?.role === "admin" && (
+                  <>
+                    <Link href="/admin/dashboard" className="text-gray-600 hover:text-vitalgo-green transition-colors">
+                      Dashboard Admin
+                    </Link>
+                  </>
+                )}
               </>
             )}
           </nav>
@@ -86,11 +115,18 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                     Iniciar Sesión
                   </Button>
                 </Link>
-                <Link href="/signup/paciente">
-                  <Button className="bg-vitalgo-green hover:bg-vitalgo-green/90 text-white">
-                    Registrarse
-                  </Button>
-                </Link>
+                <div className="flex items-center space-x-2">
+                  <Link href="/signup/paciente">
+                    <Button className="bg-vitalgo-green hover:bg-vitalgo-green/90 text-white">
+                      Paciente
+                    </Button>
+                  </Link>
+                  <Link href="/signup/paramedico">
+                    <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white">
+                      Paramédico
+                    </Button>
+                  </Link>
+                </div>
               </>
             ) : (
               <div className="flex items-center space-x-3">
@@ -100,18 +136,23 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                   </div>
                   <div className="text-sm">
                     <div className="font-medium text-gray-900">{user?.name}</div>
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {user?.role}
+                    <Badge variant="outline" className="text-xs">
+                      {getRoleInSpanish(user?.role || '')}
                     </Badge>
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Link href="/settings">
+                  <Link href="/profile/edit">
                     <Button variant="ghost" size="sm" className="text-gray-600 hover:text-vitalgo-green">
                       <Settings className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="sm" className="text-gray-600 hover:text-red-600">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-gray-600 hover:text-red-600"
+                    onClick={handleSignOut}
+                  >
                     <LogOut className="h-4 w-4" />
                   </Button>
                 </div>
@@ -156,7 +197,12 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                     </Link>
                     <Link href="/signup/paciente" className="block">
                       <Button className="w-full bg-vitalgo-green hover:bg-vitalgo-green/90 text-white">
-                        Registrarse
+                        Registrarse como Paciente
+                      </Button>
+                    </Link>
+                    <Link href="/signup/paramedico" className="block">
+                      <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white">
+                        Registrarse como Paramédico
                       </Button>
                     </Link>
                   </div>
@@ -186,6 +232,13 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                       </Link>
                     </>
                   )}
+                  {user?.role === "admin" && (
+                    <>
+                      <Link href="/admin/dashboard" className="block px-3 py-2 text-gray-600 hover:text-vitalgo-green">
+                        Dashboard Admin
+                      </Link>
+                    </>
+                  )}
                   <div className="px-3 py-2 border-t border-gray-200">
                     <div className="flex items-center space-x-2 mb-3">
                       <div className="w-8 h-8 bg-vitalgo-green/10 rounded-full flex items-center justify-center">
@@ -193,19 +246,23 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">{user?.name}</div>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {user?.role}
+                        <Badge variant="outline" className="text-xs">
+                          {getRoleInSpanish(user?.role || '')}
                         </Badge>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Link href="/settings" className="block">
+                      <Link href="/profile/edit" className="block">
                         <Button variant="outline" className="w-full text-left justify-start">
                           <Settings className="h-4 w-4 mr-2" />
-                          Configuración
+                          Editar Perfil
                         </Button>
                       </Link>
-                      <Button variant="outline" className="w-full text-left justify-start text-red-600 hover:text-red-700">
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-left justify-start text-red-600 hover:text-red-700"
+                        onClick={handleSignOut}
+                      >
                         <LogOut className="h-4 w-4 mr-2" />
                         Cerrar Sesión
                       </Button>

@@ -10,6 +10,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, date, timedelta
 import jwt
+import os
 from passlib.context import CryptContext
 
 from ...application.commands import CreateUserCommand, CreatePatientCommand, CreateParamedicCommand
@@ -87,10 +88,38 @@ class UserResponse(BaseModel):
     created_at: str
 
 
-# JWT configuration
-SECRET_KEY = "your-secret-key-change-in-production"  # Should be from environment
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
+class UpdateUserRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class EPSResponse(BaseModel):
+    id: str
+    name: str
+    code: str
+    regime_type: str
+    status: str
+
+
+# JWT configuration - SECURE VERSION
+# NEVER hardcode secrets - always use environment variables
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise EnvironmentError(
+        "SECRET_KEY environment variable is required. "
+        "Please set a secure secret key before starting the application. "
+        "Example: export SECRET_KEY='your-secure-secret-key-here'"
+    )
+
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # Default 24 hours
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -136,7 +165,19 @@ import os
 from datetime import datetime
 
 # Database connection
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://backend_user:backend_pass@localhost:5432/backend_db")
+# Database connection - SECURE VERSION  
+# NEVER hardcode credentials - always use environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise EnvironmentError(
+        "DATABASE_URL environment variable is required. "
+        "Please set it before starting the application. "
+        "Example: export DATABASE_URL='postgresql://user:password@host:port/database'"
+    )
+
+# Convert asyncpg URL to psycopg2 format if needed
+if "postgresql+asyncpg://" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
 
 def get_db_connection():
     """Get database connection"""
@@ -160,12 +201,15 @@ class SimpleHandlers:
                 user_id = str(uuid.uuid4())
                 password_hash = hash_password(command.password)
                 
+                # Set is_active based on role - paramedics start inactive for approval
+                is_active = True if command.role != "paramedic" else False
+                
                 cursor.execute("""
                     INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     RETURNING id, email, first_name, last_name, role, is_active, created_at
                 """, (user_id, command.email, password_hash, command.first_name, command.last_name, 
-                      command.phone, command.role, True))
+                      command.phone, command.role, is_active))
                 
                 user = cursor.fetchone()
                 conn.commit()
@@ -301,6 +345,24 @@ async def register_patient(
 ):
     """Register a new patient"""
     try:
+        # Validate EPS against database
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM eps 
+            WHERE name = %s AND status = 'activa'
+        """, (request.eps,))
+        
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not result or result['count'] == 0:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"La EPS '{request.eps}' no es válida o no está activa. Por favor selecciona una EPS de la lista."
+            )
         # Create user first
         user_command = CreateUserCommand(
             email=request.email,
@@ -471,6 +533,42 @@ async def get_current_user(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/check-document", response_model=dict)
+async def check_document_exists(
+    document_type: str,
+    document_number: str
+):
+    """Check if document already exists in the database"""
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT p.id, u.email, u.first_name, u.last_name
+                FROM patients p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.document_type = %s AND p.document_number = %s
+            """, (document_type, document_number))
+            
+            patient = cur.fetchone()
+            conn.close()
+            
+            if patient:
+                return {
+                    "exists": True,
+                    "message": "Este número de documento ya está registrado en el sistema"
+                }
+            else:
+                return {
+                    "exists": False,
+                    "message": "Documento disponible"
+                }
+                
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al verificar documento: {str(e)}"
+        )
+
 @router.post("/refresh", response_model=dict)
 async def refresh_token(current_user: dict = Depends(verify_token)):
     """Refresh access token"""
@@ -490,3 +588,176 @@ async def refresh_token(current_user: dict = Depends(verify_token)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    request: UpdateUserRequest,
+    current_user: dict = Depends(verify_token)
+):
+    """Update user information"""
+    try:
+        # Check if user is updating their own profile or is admin
+        if current_user["sub"] != user_id and current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Not authorized to update this user")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Build update query dynamically based on provided fields
+        update_fields = []
+        params = []
+        
+        if request.first_name is not None:
+            update_fields.append("first_name = %s")
+            params.append(request.first_name)
+            
+        if request.last_name is not None:
+            update_fields.append("last_name = %s")
+            params.append(request.last_name)
+            
+        if request.email is not None:
+            # Check if email already exists (for other users)
+            cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (request.email, user_id))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="Email already registered")
+            update_fields.append("email = %s")
+            params.append(request.email)
+            
+        if request.phone is not None:
+            update_fields.append("phone = %s")
+            params.append(request.phone)
+            
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+            
+        # Add updated_at field
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(user_id)
+        
+        update_query = f"""
+            UPDATE users 
+            SET {', '.join(update_fields)}
+            WHERE id = %s
+            RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
+        """
+        
+        cursor.execute(update_query, params)
+        updated_user = cursor.fetchone()
+        
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return UserResponse(
+            id=updated_user["id"],
+            email=updated_user["email"],
+            first_name=updated_user["first_name"],
+            last_name=updated_user["last_name"],
+            phone=updated_user["phone"],
+            role=updated_user["role"],
+            is_active=updated_user["is_active"],
+            created_at=str(updated_user["created_at"])
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            cursor.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/change-password", response_model=dict)
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: dict = Depends(verify_token)
+):
+    """Change user password"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get current user data
+        cursor.execute("SELECT password_hash FROM users WHERE id = %s", (current_user["sub"],))
+        user_data = cursor.fetchone()
+        
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Verify current password
+        if not verify_password(request.current_password, user_data["password_hash"]):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+            
+        # Hash new password
+        new_password_hash = hash_password(request.new_password)
+        
+        # Update password
+        cursor.execute("""
+            UPDATE users 
+            SET password_hash = %s, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (new_password_hash, current_user["sub"]))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return {"message": "Password changed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            cursor.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/eps", response_model=list[EPSResponse])
+async def get_eps_list(
+    regime_type: Optional[str] = None,
+    status: str = "activa"
+):
+    """Get list of EPS (Entidades Promotoras de Salud) available in Colombia"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Base query
+        query = "SELECT id, name, code, regime_type, status FROM eps WHERE status = %s"
+        params = [status]
+        
+        # Add regime_type filter if provided
+        if regime_type and regime_type in ["contributivo", "subsidiado", "ambos"]:
+            query += " AND (regime_type = %s OR regime_type = 'ambos')"
+            params.append(regime_type)
+        
+        query += " ORDER BY name ASC"
+        
+        cursor.execute(query, params)
+        eps_list = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return [EPSResponse(
+            id=eps["id"],
+            name=eps["name"],
+            code=eps["code"],
+            regime_type=eps["regime_type"],
+            status=eps["status"]
+        ) for eps in eps_list]
+        
+    except Exception as e:
+        if 'conn' in locals():
+            cursor.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error retrieving EPS list: {str(e)}")

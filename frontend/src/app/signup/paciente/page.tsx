@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { AlertWithIcon } from "@/shared/components/atoms/alert"
 import { InputField, SelectField } from "@/shared/components/molecules/form-field"
 import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
-import { Heart, ArrowRight, Eye, EyeOff, CheckCircle, X } from "lucide-react"
+import { Heart, ArrowRight, Eye, EyeOff, CheckCircle, X, Stethoscope, Search, ChevronDown } from "lucide-react"
 
 const tiposDocumento = [
   { value: "CC", label: "Cédula de Ciudadanía" },
@@ -51,10 +51,99 @@ export default function SignupPacientePage() {
   const [signupError, setSignupError] = useState("")
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [registeredData, setRegisteredData] = useState<any>(null)
+  const [isCheckingDocument, setIsCheckingDocument] = useState(false)
+  const [documentAlert, setDocumentAlert] = useState("")
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [emailAlert, setEmailAlert] = useState("")
+  const [epsOptions, setEpsOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [isLoadingEps, setIsLoadingEps] = useState(false)
+  const [epsSearch, setEpsSearch] = useState("")
+  const [showEpsDropdown, setShowEpsDropdown] = useState(false)
+  const [filteredEpsOptions, setFilteredEpsOptions] = useState<Array<{ value: string; label: string }>>([])  
 
-  const handleGoToLogin = () => {
+  // Fetch EPS list on component mount
+  useEffect(() => {
+    const fetchEpsList = async () => {
+      setIsLoadingEps(true)
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/auth/eps', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (response.ok) {
+          const epsData = await response.json()
+          const formattedOptions = epsData.map((eps: any) => ({
+            value: eps.name,
+            label: eps.name
+          }))
+          setEpsOptions(formattedOptions)
+        }
+      } catch (error) {
+        console.error('Error fetching EPS list:', error)
+      } finally {
+        setIsLoadingEps(false)
+      }
+    }
+
+    fetchEpsList()
+  }, [])
+
+  // Filter EPS options based on search
+  useEffect(() => {
+    if (epsSearch.trim() === "") {
+      setFilteredEpsOptions(epsOptions)
+    } else {
+      const filtered = epsOptions.filter(eps =>
+        eps.label.toLowerCase().includes(epsSearch.toLowerCase())
+      )
+      setFilteredEpsOptions(filtered)
+    }
+  }, [epsSearch, epsOptions])
+
+  // Close EPS dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.eps-autocomplete')) {
+        setShowEpsDropdown(false)
+      }
+    }
+
+    if (showEpsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showEpsDropdown])
+
+  const handleGoToCompleteProfile = () => {
     setShowSuccessModal(false)
-    router.push('/login')
+    router.push('/complete-medical-profile')
+  }
+
+  const handleEpsSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEpsSearch(value)
+    setFormData(prev => ({ ...prev, eps: value }))
+    setShowEpsDropdown(true)
+    
+    // Clear error if exists
+    if (errors.eps) {
+      setErrors(prev => ({ ...prev, eps: "" }))
+    }
+  }
+
+  const handleEpsSelect = (eps: { value: string; label: string }) => {
+    setFormData(prev => ({ ...prev, eps: eps.value }))
+    setEpsSearch(eps.label)
+    setShowEpsDropdown(false)
+    
+    // Clear error if exists
+    if (errors.eps) {
+      setErrors(prev => ({ ...prev, eps: "" }))
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -62,6 +151,107 @@ export default function SignupPacientePage() {
     setFormData(prev => ({ ...prev, [name]: value }))
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }))
+    }
+    if (documentAlert && name !== "numeroDocumento" && name !== "tipoDocumento") {
+      setDocumentAlert("")
+    }
+    if (emailAlert && name !== "email") {
+      setEmailAlert("")
+    }
+  }
+
+  const checkDocumentExists = async (documentType: string, documentNumber: string) => {
+    if (!documentType || !documentNumber || documentNumber.length < 5) {
+      return
+    }
+
+    setIsCheckingDocument(true)
+    setDocumentAlert("")
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/auth/check-document?document_type=${documentType}&document_number=${documentNumber}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setDocumentAlert(`Este número de documento ya está registrado. Si es tu cuenta, puedes iniciar sesión.`)
+          setErrors(prev => ({ ...prev, numeroDocumento: "Este documento ya está registrado" }))
+        }
+      }
+    } catch (error) {
+      console.error("Error checking document:", error)
+    } finally {
+      setIsCheckingDocument(false)
+    }
+  }
+
+  const checkEmailExists = async (email: string) => {
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      return
+    }
+
+    setIsCheckingEmail(true)
+    setEmailAlert("")
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/auth/check-email?email=${encodeURIComponent(email)}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setEmailAlert(`Este email ya está registrado. Si es tu cuenta, puedes iniciar sesión.`)
+          setErrors(prev => ({ ...prev, email: "Este email ya está registrado" }))
+        }
+      }
+    } catch (error) {
+      console.error("Error checking email:", error)
+    } finally {
+      setIsCheckingEmail(false)
+    }
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleInputChange(e)
+    
+    // Clear alerts when user starts typing
+    if (emailAlert) {
+      setEmailAlert("")
+    }
+    
+    // Trigger email check with debounce
+    const timeoutId = setTimeout(() => {
+      checkEmailExists(e.target.value)
+    }, 1000) // Wait 1 second after user stops typing
+    
+    return () => clearTimeout(timeoutId)
+  }
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    handleInputChange(e)
+    
+    // Trigger document check when both type and number are available
+    if (e.target.name === "numeroDocumento" && formData.tipoDocumento) {
+      const timeoutId = setTimeout(() => {
+        checkDocumentExists(formData.tipoDocumento, e.target.value)
+      }, 1000) // Wait 1 second after user stops typing
+      
+      return () => clearTimeout(timeoutId)
+    } else if (e.target.name === "tipoDocumento" && formData.numeroDocumento) {
+      const timeoutId = setTimeout(() => {
+        checkDocumentExists(e.target.value, formData.numeroDocumento)
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
     }
   }
 
@@ -114,6 +304,8 @@ export default function SignupPacientePage() {
 
     if (!formData.eps) {
       newErrors.eps = "La EPS es requerida"
+    } else if (!epsOptions.find(eps => eps.value === formData.eps || eps.label === formData.eps)) {
+      newErrors.eps = "Selecciona una EPS válida de la lista"
     }
 
     setErrors(newErrors)
@@ -154,18 +346,59 @@ export default function SignupPacientePage() {
       })
 
       if (!response.ok) {
-        throw new Error("Error al registrar el paciente")
+        const errorData = await response.json().catch(() => ({}))
+        
+        // Handle specific error messages from the server
+        if (response.status === 400) {
+          if (errorData.detail && errorData.detail.includes("email")) {
+            setErrors(prev => ({ ...prev, email: "Este email ya está registrado" }))
+            setEmailAlert("Este email ya está registrado. Si es tu cuenta, puedes iniciar sesión.")
+            return
+          } else if (errorData.detail && errorData.detail.includes("document")) {
+            setErrors(prev => ({ ...prev, numeroDocumento: "Este documento ya está registrado" }))
+            setDocumentAlert("Este documento ya está registrado. Si es tu cuenta, puedes iniciar sesión.")
+            return
+          }
+        }
+        
+        throw new Error(errorData.detail || "Error al registrar el paciente")
       }
 
       const data = await response.json()
       console.log("Registro exitoso:", data)
+
+      // Hacer login automático después del registro
+      const loginResponse = await fetch("http://localhost:8000/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        }),
+      })
+
+      if (loginResponse.ok) {
+        const loginData = await loginResponse.json()
+        
+        // Store token and user data in localStorage
+        localStorage.setItem('access_token', loginData.access_token)
+        localStorage.setItem('user_data', JSON.stringify(loginData.user))
+        localStorage.setItem('user_role', loginData.role)
+        
+        // Mostrar modal de éxito y después redirigir
+        setRegisteredData(data)
+        setShowSuccessModal(true)
+      } else {
+        // Si el login falla, mostrar modal de éxito sin auto-login
+        setRegisteredData(data)
+        setShowSuccessModal(true)
+      }
       
-      // Mostrar modal de éxito
-      setRegisteredData(data)
-      setShowSuccessModal(true)
-      
-    } catch (error) {
-      setSignupError("Error al registrar la cuenta. Inténtalo de nuevo.")
+    } catch (error: any) {
+      const errorMessage = error.message || "Error al registrar la cuenta. Inténtalo de nuevo."
+      setSignupError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -173,14 +406,25 @@ export default function SignupPacientePage() {
 
   return (
     <MainLayout showFooter={false}>
-      <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Subtle background patterns */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-1/4 w-72 h-72 bg-vitalgo-green/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-400/5 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/3 right-0 w-64 h-64 bg-vitalgo-green/5 rounded-full blur-2xl"></div>
+        </div>
+        <div className="max-w-md w-full space-y-8 relative z-10">
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 mb-8">
-              <div className="w-12 h-12 bg-vitalgo-green rounded-xl flex items-center justify-center">
-                <Heart className="h-7 w-7 text-white" />
+            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
+              <img 
+                src="/logoh-blue-light-background.png" 
+                alt="VitalGo Logo" 
+                className="h-12 w-auto"
+              />
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-vitalgo-dark">VitalGo</span>
+                <span className="text-xs text-gray-600">Diagnóstico rápido y atención prioritaria</span>
               </div>
-              <span className="text-2xl font-bold text-vitalgo-dark">VitalGo</span>
             </Link>
             <h1 className="text-3xl font-light text-vitalgo-dark mb-2">
               Únete a VitalGo
@@ -190,7 +434,7 @@ export default function SignupPacientePage() {
             </p>
           </div>
 
-          <Card className="shadow-xl border-0">
+          <Card className="shadow-2xl border border-white/20 backdrop-blur-sm bg-white/95">
             <CardHeader className="space-y-1 pb-6">
               <CardTitle className="text-2xl font-normal text-center text-gray-900">
                 Registro de Paciente
@@ -203,6 +447,30 @@ export default function SignupPacientePage() {
                   description={signupError}
                   className="mb-6"
                 />
+              )}
+
+              {documentAlert && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-800">
+                        {documentAlert}
+                      </p>
+                      <div className="mt-2">
+                        <Link href="/login">
+                          <Button size="sm" variant="outline" className="border-yellow-600 text-yellow-700 hover:bg-yellow-100">
+                            Ir al Login
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -224,21 +492,28 @@ export default function SignupPacientePage() {
                     options={tiposDocumento}
                     placeholder="Selecciona"
                     value={formData.tipoDocumento}
-                    onChange={handleInputChange}
+                    onChange={handleDocumentChange}
                     error={errors.tipoDocumento}
                     required
                   />
 
-                  <InputField
-                    label="Número de documento"
-                    type="text"
-                    name="numeroDocumento"
-                    placeholder="1234567890"
-                    value={formData.numeroDocumento}
-                    onChange={handleInputChange}
-                    error={errors.numeroDocumento}
-                    required
-                  />
+                  <div className="relative">
+                    <InputField
+                      label="Número de documento"
+                      type="text"
+                      name="numeroDocumento"
+                      placeholder="1234567890"
+                      value={formData.numeroDocumento}
+                      onChange={handleDocumentChange}
+                      error={errors.numeroDocumento}
+                      required
+                    />
+                    {isCheckingDocument && (
+                      <div className="absolute right-3 top-9 flex items-center">
+                        <Spinner size="sm" />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -276,28 +551,78 @@ export default function SignupPacientePage() {
                     required
                   />
 
-                  <InputField
-                    label="EPS"
-                    type="text"
-                    name="eps"
-                    placeholder="Tu EPS"
-                    value={formData.eps}
-                    onChange={handleInputChange}
-                    error={errors.eps}
-                    required
-                  />
+                  {/* EPS Autocomplete */}
+                  <div className="relative eps-autocomplete">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      EPS *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="epsSearch"
+                        placeholder={isLoadingEps ? "Cargando EPS..." : "Busca tu EPS..."}
+                        value={epsSearch}
+                        onChange={handleEpsSearch}
+                        onFocus={() => setShowEpsDropdown(true)}
+                        disabled={isLoadingEps}
+                        className={`w-full px-3 py-2 pl-10 border rounded-lg focus:ring-2 focus:ring-vitalgo-green focus:border-transparent transition-colors ${
+                          errors.eps ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                      />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      {showEpsDropdown && (
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      )}
+                    </div>
+                    
+                    {showEpsDropdown && !isLoadingEps && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {filteredEpsOptions.length > 0 ? (
+                          filteredEpsOptions.map((eps, index) => (
+                            <div
+                              key={index}
+                              className="px-3 py-2 hover:bg-vitalgo-green/10 cursor-pointer transition-colors"
+                              onClick={() => handleEpsSelect(eps)}
+                            >
+                              {eps.label}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-gray-500 text-sm">
+                            No se encontraron EPS que coincidan
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {errors.eps && (
+                      <p className="mt-1 text-sm text-red-600">{errors.eps}</p>
+                    )}
+                  </div>
                 </div>
 
-                <InputField
-                  label="Email"
-                  type="email"
-                  name="email"
-                  placeholder="tu@email.com"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  error={errors.email}
-                  required
-                />
+                <div className="relative">
+                  <InputField
+                    label="Email"
+                    type="email"
+                    name="email"
+                    placeholder="tu@email.com"
+                    value={formData.email}
+                    onChange={handleEmailChange}
+                    error={errors.email}
+                    required
+                  />
+                  {isCheckingEmail && (
+                    <div className="absolute right-3 top-9 flex items-center">
+                      <Spinner size="sm" />
+                    </div>
+                  )}
+                  {emailAlert && (
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">{emailAlert}</p>
+                    </div>
+                  )}
+                </div>
 
                 <div className="relative">
                   <InputField
@@ -353,7 +678,7 @@ export default function SignupPacientePage() {
                 </Button>
               </form>
 
-              <div className="mt-6 text-center">
+              <div className="mt-6 text-center space-y-4">
                 <p className="text-sm text-gray-600">
                   ¿Ya tienes una cuenta?{" "}
                   <Link
@@ -363,6 +688,20 @@ export default function SignupPacientePage() {
                     Inicia sesión
                   </Link>
                 </p>
+                <div className="border-t border-gray-200 pt-4">
+                  <p className="text-sm text-gray-600 mb-3">
+                    ¿Eres profesional de la salud?
+                  </p>
+                  <Link href="/signup/paramedico">
+                    <Button
+                      variant="outline"
+                      className="border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <Stethoscope className="mr-2 h-4 w-4" />
+                      Registrarse como Profesional
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -392,7 +731,7 @@ export default function SignupPacientePage() {
               </h3>
 
               <p className="text-gray-600 mb-6">
-                Tu cuenta ha sido creada exitosamente. Ya puedes iniciar sesión con tus credenciales.
+                Tu cuenta ha sido creada exitosamente. Ahora completa tu perfil médico para tener toda tu información disponible en emergencias.
               </p>
 
               {registeredData && (
@@ -412,17 +751,17 @@ export default function SignupPacientePage() {
 
               <div className="flex gap-3">
                 <Button
-                  onClick={() => setShowSuccessModal(false)}
+                  onClick={() => router.push('/login')}
                   variant="outline"
                   className="flex-1"
                 >
-                  Cerrar
+                  Ir al Login
                 </Button>
                 <Button
-                  onClick={handleGoToLogin}
+                  onClick={handleGoToCompleteProfile}
                   className="flex-1 bg-vitalgo-green hover:bg-vitalgo-green/90"
                 >
-                  Ir al Login
+                  Completar Perfil Médico
                 </Button>
               </div>
             </div>

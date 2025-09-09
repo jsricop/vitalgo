@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,40 +21,73 @@ import {
   MapPin
 } from "lucide-react"
 
-const mockCirugias = [
-  { 
-    id: "1", 
-    nombre: "Apendicectomía", 
-    fecha: "2018-05-12", 
-    hospital: "Hospital San Juan",
-    medico: "Dr. García Pérez",
-    notas: "Sin complicaciones. Recuperación normal." 
-  },
-  { 
-    id: "2", 
-    nombre: "Extracción de vesícula", 
-    fecha: "2020-11-08", 
-    hospital: "Clínica Colombia",
-    medico: "Dra. María López",
-    notas: "Cirugía laparoscópica exitosa" 
-  }
-]
+interface Surgery {
+  id: string
+  surgery_name: string
+  surgery_date: string
+  hospital: string
+  surgeon: string
+  notes: string
+}
 
 export default function CirugiasPage() {
-  const [cirugias, setCirugias] = useState(mockCirugias)
+  const router = useRouter()
+  const [cirugias, setCirugias] = useState<Surgery[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCirugia, setEditingCirugia] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [user, setUser] = useState<any>(null)
 
   const [formData, setFormData] = useState({
-    nombre: "",
-    fecha: "",
+    surgery_name: "",
+    surgery_date: "",
     hospital: "",
-    medico: "",
-    notas: ""
+    surgeon: "",
+    notes: ""
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    loadUserAndSurgeries()
+  }, [])
+
+  const loadUserAndSurgeries = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const userData = localStorage.getItem('user_data')
+      
+      if (!token || !userData) {
+        router.push('/login')
+        return
+      }
+
+      const parsedUser = JSON.parse(userData)
+      setUser(parsedUser)
+
+      // Load surgeries
+      const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCirugias(data.surgeries || [])
+      } else if (response.status === 401) {
+        router.push('/login')
+        return
+      }
+    } catch (error) {
+      console.error('Error loading surgeries:', error)
+      setError('Error al cargar las cirugías')
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -66,12 +100,12 @@ export default function CirugiasPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = "El nombre de la cirugía es requerido"
+    if (!formData.surgery_name.trim()) {
+      newErrors.surgery_name = "El nombre de la cirugía es requerido"
     }
 
-    if (!formData.fecha) {
-      newErrors.fecha = "La fecha es requerida"
+    if (!formData.surgery_date) {
+      newErrors.surgery_date = "La fecha es requerida"
     }
 
     if (!formData.hospital.trim()) {
@@ -93,48 +127,77 @@ export default function CirugiasPage() {
     setIsLoading(true)
 
     try {
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
       if (editingCirugia) {
         // Actualizar cirugía existente
+        const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries/${editingCirugia.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+
+        if (!response.ok) {
+          throw new Error('Error al actualizar la cirugía')
+        }
+
+        const data = await response.json()
         setCirugias(prev => prev.map(c => 
-          c.id === editingCirugia.id 
-            ? { ...c, ...formData }
-            : c
+          c.id === editingCirugia.id ? data.surgery : c
         ))
       } else {
         // Crear nueva cirugía
-        const newCirugia = {
-          id: Date.now().toString(),
-          ...formData
+        const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+
+        if (!response.ok) {
+          throw new Error('Error al crear la cirugía')
         }
-        setCirugias(prev => [...prev, newCirugia])
+
+        const data = await response.json()
+        setCirugias(prev => [...prev, data.surgery])
       }
 
       // Reset form
       setFormData({ 
-        nombre: "", 
-        fecha: "", 
+        surgery_name: "", 
+        surgery_date: "", 
         hospital: "", 
-        medico: "",
-        notas: "" 
+        surgeon: "",
+        notes: "" 
       })
       setIsModalOpen(false)
       setEditingCirugia(null)
       
-    } catch (error) {
-      setError("Error al guardar la cirugía. Inténtalo de nuevo.")
+    } catch (error: any) {
+      console.error('Error saving surgery:', error)
+      setError(error.message || "Error al guardar la cirugía. Inténtalo de nuevo.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleEdit = (cirugia: any) => {
+  const handleEdit = (cirugia: Surgery) => {
     setEditingCirugia(cirugia)
     setFormData({
-      nombre: cirugia.nombre,
-      fecha: cirugia.fecha,
+      surgery_name: cirugia.surgery_name,
+      surgery_date: cirugia.surgery_date,
       hospital: cirugia.hospital,
-      medico: cirugia.medico || "",
-      notas: cirugia.notas || ""
+      surgeon: cirugia.surgeon || "",
+      notes: cirugia.notes || ""
     })
     setIsModalOpen(true)
   }
@@ -145,20 +208,39 @@ export default function CirugiasPage() {
     }
 
     try {
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar la cirugía')
+      }
+
       setCirugias(prev => prev.filter(c => c.id !== id))
-    } catch (error) {
-      setError("Error al eliminar la cirugía")
+    } catch (error: any) {
+      console.error('Error deleting surgery:', error)
+      setError(error.message || "Error al eliminar la cirugía")
     }
   }
 
   const openCreateModal = () => {
     setEditingCirugia(null)
     setFormData({ 
-      nombre: "", 
-      fecha: "", 
+      surgery_name: "", 
+      surgery_date: "", 
       hospital: "", 
-      medico: "",
-      notas: "" 
+      surgeon: "",
+      notes: "" 
     })
     setErrors({})
     setIsModalOpen(true)
@@ -168,17 +250,36 @@ export default function CirugiasPage() {
     setIsModalOpen(false)
     setEditingCirugia(null)
     setFormData({ 
-      nombre: "", 
-      fecha: "", 
+      surgery_name: "", 
+      surgery_date: "", 
       hospital: "", 
-      medico: "",
-      notas: "" 
+      surgeon: "",
+      notes: "" 
     })
     setErrors({})
   }
 
+  if (isLoadingData) {
+    return (
+      <MainLayout isAuthenticated={true} user={{ name: "Cargando...", role: "patient" }}>
+        <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white flex items-center justify-center">
+          <div className="text-center">
+            <Spinner size="lg" className="mb-4" />
+            <p className="text-gray-600">Cargando cirugías...</p>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <MainLayout isAuthenticated={true} user={{ name: "Juan Carlos", role: "patient" }}>
+    <MainLayout 
+      isAuthenticated={true} 
+      user={{ 
+        name: user ? `${user.first_name} ${user.last_name}` : "Usuario", 
+        role: "patient" 
+      }}
+    >
       <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
@@ -228,29 +329,29 @@ export default function CirugiasPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {cirugia.nombre}
+                          {cirugia.surgery_name}
                         </h3>
                         <div className="space-y-2 text-sm text-gray-600 mb-3">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4" />
                             <span>
-                              {new Date(cirugia.fecha).toLocaleDateString('es-CO')}
+                              {new Date(cirugia.surgery_date).toLocaleDateString('es-CO')}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <MapPin className="h-4 w-4" />
                             <span>{cirugia.hospital}</span>
                           </div>
-                          {cirugia.medico && (
+                          {cirugia.surgeon && (
                             <div className="flex items-center space-x-2">
                               <Scissors className="h-4 w-4" />
-                              <span>Cirujano: {cirugia.medico}</span>
+                              <span>Cirujano: {cirugia.surgeon}</span>
                             </div>
                           )}
                         </div>
-                        {cirugia.notas && (
+                        {cirugia.notes && (
                           <p className="text-gray-600 bg-gray-50 p-3 rounded-md">
-                            {cirugia.notas}
+                            {cirugia.notes}
                           </p>
                         )}
                       </div>
@@ -315,21 +416,21 @@ export default function CirugiasPage() {
                 <InputField
                   label="Nombre de la cirugía"
                   type="text"
-                  name="nombre"
+                  name="surgery_name"
                   placeholder="Ej: Apendicectomía, Cesárea, Artroscopia"
-                  value={formData.nombre}
+                  value={formData.surgery_name}
                   onChange={handleInputChange}
-                  error={errors.nombre}
+                  error={errors.surgery_name}
                   required
                 />
 
                 <InputField
                   label="Fecha de la cirugía"
                   type="date"
-                  name="fecha"
-                  value={formData.fecha}
+                  name="surgery_date"
+                  value={formData.surgery_date}
                   onChange={handleInputChange}
-                  error={errors.fecha}
+                  error={errors.surgery_date}
                   required
                 />
 
@@ -347,20 +448,20 @@ export default function CirugiasPage() {
                 <InputField
                   label="Cirujano (opcional)"
                   type="text"
-                  name="medico"
+                  name="surgeon"
                   placeholder="Dr. Juan Pérez"
-                  value={formData.medico}
+                  value={formData.surgeon}
                   onChange={handleInputChange}
-                  error={errors.medico}
+                  error={errors.surgeon}
                 />
 
                 <TextareaField
                   label="Notas adicionales"
-                  name="notas"
+                  name="notes"
                   placeholder="Complicaciones, recuperación, observaciones..."
-                  value={formData.notas}
+                  value={formData.notes}
                   onChange={handleInputChange}
-                  error={errors.notas}
+                  error={errors.notes}
                   rows={3}
                 />
 

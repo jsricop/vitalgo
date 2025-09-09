@@ -13,12 +13,14 @@ import os
 class MedicalConfig(BaseSettings):
     """Configuration class for medical management module"""
     
-    # Database settings
-    database_url: str = "postgresql://postgres:password@localhost:5432/vitalgo"
+    # Database settings - SECURE VERSION
+    # NEVER hardcode credentials - always use environment variables
+    database_url: str
     database_echo: bool = False
     
-    # JWT settings
-    jwt_secret_key: str = "change-this-secret-key-in-production"
+    # JWT settings - SECURE VERSION  
+    # NEVER hardcode secrets - always use environment variables
+    jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 1440  # 24 hours
     

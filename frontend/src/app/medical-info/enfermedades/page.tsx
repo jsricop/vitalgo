@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,40 +27,73 @@ const estadoOptions = [
   { value: "CURADA", label: "Curada" }
 ]
 
-const mockEnfermedades = [
-  { 
-    id: "1", 
-    nombre: "Hipertensión", 
-    cie10_code: "I10", 
-    estado: "ACTIVA", 
-    fecha_diagnostico: "2020-03-10",
-    notas: "Control con medicamento diario" 
-  },
-  { 
-    id: "2", 
-    nombre: "Diabetes tipo 2", 
-    cie10_code: "E11", 
-    estado: "CONTROLADA", 
-    fecha_diagnostico: "2019-08-22",
-    notas: "Controlada con dieta y ejercicio" 
-  }
-]
+interface Illness {
+  id: string
+  illness_name: string
+  cie10_code: string
+  diagnosis_date: string
+  status: string
+  notes: string
+}
 
 export default function EnfermedadesPage() {
-  const [enfermedades, setEnfermedades] = useState(mockEnfermedades)
+  const router = useRouter()
+  const [enfermedades, setEnfermedades] = useState<Illness[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEnfermedad, setEditingEnfermedad] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [user, setUser] = useState<any>(null)
 
   const [formData, setFormData] = useState({
-    nombre: "",
+    illness_name: "",
     cie10_code: "",
-    estado: "",
-    fecha_diagnostico: "",
-    notas: ""
+    status: "",
+    diagnosis_date: "",
+    notes: ""
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    loadUserAndIllnesses()
+  }, [])
+
+  const loadUserAndIllnesses = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const userData = localStorage.getItem('user_data')
+      
+      if (!token || !userData) {
+        router.push('/login')
+        return
+      }
+
+      const parsedUser = JSON.parse(userData)
+      setUser(parsedUser)
+
+      // Load illnesses
+      const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setEnfermedades(data.illnesses || [])
+      } else if (response.status === 401) {
+        router.push('/login')
+        return
+      }
+    } catch (error) {
+      console.error('Error loading illnesses:', error)
+      setError('Error al cargar las enfermedades')
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -72,16 +106,16 @@ export default function EnfermedadesPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = "El nombre de la enfermedad es requerido"
+    if (!formData.illness_name.trim()) {
+      newErrors.illness_name = "El nombre de la enfermedad es requerido"
     }
 
-    if (!formData.estado) {
-      newErrors.estado = "El estado es requerido"
+    if (!formData.status) {
+      newErrors.status = "El estado es requerido"
     }
 
-    if (!formData.fecha_diagnostico) {
-      newErrors.fecha_diagnostico = "La fecha de diagnóstico es requerida"
+    if (!formData.diagnosis_date) {
+      newErrors.diagnosis_date = "La fecha de diagnóstico es requerida"
     }
 
     setErrors(newErrors)
@@ -99,48 +133,77 @@ export default function EnfermedadesPage() {
     setIsLoading(true)
 
     try {
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
       if (editingEnfermedad) {
         // Actualizar enfermedad existente
+        const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses/${editingEnfermedad.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+
+        if (!response.ok) {
+          throw new Error('Error al actualizar la enfermedad')
+        }
+
+        const data = await response.json()
         setEnfermedades(prev => prev.map(e => 
-          e.id === editingEnfermedad.id 
-            ? { ...e, ...formData }
-            : e
+          e.id === editingEnfermedad.id ? data.illness : e
         ))
       } else {
         // Crear nueva enfermedad
-        const newEnfermedad = {
-          id: Date.now().toString(),
-          ...formData
+        const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+
+        if (!response.ok) {
+          throw new Error('Error al crear la enfermedad')
         }
-        setEnfermedades(prev => [...prev, newEnfermedad])
+
+        const data = await response.json()
+        setEnfermedades(prev => [...prev, data.illness])
       }
 
       // Reset form
       setFormData({ 
-        nombre: "", 
+        illness_name: "", 
         cie10_code: "", 
-        estado: "", 
-        fecha_diagnostico: "", 
-        notas: "" 
+        status: "", 
+        diagnosis_date: "", 
+        notes: "" 
       })
       setIsModalOpen(false)
       setEditingEnfermedad(null)
       
-    } catch (error) {
-      setError("Error al guardar la enfermedad. Inténtalo de nuevo.")
+    } catch (error: any) {
+      console.error('Error saving illness:', error)
+      setError(error.message || "Error al guardar la enfermedad. Inténtalo de nuevo.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleEdit = (enfermedad: any) => {
+  const handleEdit = (enfermedad: Illness) => {
     setEditingEnfermedad(enfermedad)
     setFormData({
-      nombre: enfermedad.nombre,
+      illness_name: enfermedad.illness_name,
       cie10_code: enfermedad.cie10_code || "",
-      estado: enfermedad.estado,
-      fecha_diagnostico: enfermedad.fecha_diagnostico,
-      notas: enfermedad.notas || ""
+      status: enfermedad.status,
+      diagnosis_date: enfermedad.diagnosis_date,
+      notes: enfermedad.notes || ""
     })
     setIsModalOpen(true)
   }
@@ -151,20 +214,39 @@ export default function EnfermedadesPage() {
     }
 
     try {
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar la enfermedad')
+      }
+
       setEnfermedades(prev => prev.filter(e => e.id !== id))
-    } catch (error) {
-      setError("Error al eliminar la enfermedad")
+    } catch (error: any) {
+      console.error('Error deleting illness:', error)
+      setError(error.message || "Error al eliminar la enfermedad")
     }
   }
 
   const openCreateModal = () => {
     setEditingEnfermedad(null)
     setFormData({ 
-      nombre: "", 
+      illness_name: "", 
       cie10_code: "", 
-      estado: "", 
-      fecha_diagnostico: "", 
-      notas: "" 
+      status: "", 
+      diagnosis_date: "", 
+      notes: "" 
     })
     setErrors({})
     setIsModalOpen(true)
@@ -174,11 +256,11 @@ export default function EnfermedadesPage() {
     setIsModalOpen(false)
     setEditingEnfermedad(null)
     setFormData({ 
-      nombre: "", 
+      illness_name: "", 
       cie10_code: "", 
-      estado: "", 
-      fecha_diagnostico: "", 
-      notas: "" 
+      status: "", 
+      diagnosis_date: "", 
+      notes: "" 
     })
     setErrors({})
   }
@@ -192,8 +274,27 @@ export default function EnfermedadesPage() {
     }
   }
 
+  if (isLoadingData) {
+    return (
+      <MainLayout isAuthenticated={true} user={{ name: "Cargando...", role: "patient" }}>
+        <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white flex items-center justify-center">
+          <div className="text-center">
+            <Spinner size="lg" className="mb-4" />
+            <p className="text-gray-600">Cargando enfermedades...</p>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <MainLayout isAuthenticated={true} user={{ name: "Juan Carlos", role: "patient" }}>
+    <MainLayout 
+      isAuthenticated={true} 
+      user={{ 
+        name: user ? `${user.first_name} ${user.last_name}` : "Usuario", 
+        role: "patient" 
+      }}
+    >
       <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
@@ -244,10 +345,10 @@ export default function EnfermedadesPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {enfermedad.nombre}
+                            {enfermedad.illness_name}
                           </h3>
-                          <Badge className={getStatusColor(enfermedad.estado)}>
-                            {enfermedad.estado}
+                          <Badge className={getStatusColor(enfermedad.status)}>
+                            {enfermedad.status}
                           </Badge>
                         </div>
                         <div className="space-y-1 text-sm text-gray-600 mb-3">
@@ -257,12 +358,12 @@ export default function EnfermedadesPage() {
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4" />
                             <span>
-                              Diagnosticada: {new Date(enfermedad.fecha_diagnostico).toLocaleDateString('es-CO')}
+                              Diagnosticada: {new Date(enfermedad.diagnosis_date).toLocaleDateString('es-CO')}
                             </span>
                           </div>
                         </div>
-                        {enfermedad.notas && (
-                          <p className="text-gray-600">{enfermedad.notas}</p>
+                        {enfermedad.notes && (
+                          <p className="text-gray-600">{enfermedad.notes}</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
@@ -326,11 +427,11 @@ export default function EnfermedadesPage() {
                 <InputField
                   label="Nombre de la enfermedad"
                   type="text"
-                  name="nombre"
+                  name="illness_name"
                   placeholder="Ej: Hipertensión, Diabetes, Asma"
-                  value={formData.nombre}
+                  value={formData.illness_name}
                   onChange={handleInputChange}
-                  error={errors.nombre}
+                  error={errors.illness_name}
                   required
                 />
 
@@ -346,32 +447,32 @@ export default function EnfermedadesPage() {
 
                 <SelectField
                   label="Estado actual"
-                  name="estado"
+                  name="status"
                   options={estadoOptions}
                   placeholder="Selecciona el estado"
-                  value={formData.estado}
+                  value={formData.status}
                   onChange={handleInputChange}
-                  error={errors.estado}
+                  error={errors.status}
                   required
                 />
 
                 <InputField
                   label="Fecha de diagnóstico"
                   type="date"
-                  name="fecha_diagnostico"
-                  value={formData.fecha_diagnostico}
+                  name="diagnosis_date"
+                  value={formData.diagnosis_date}
                   onChange={handleInputChange}
-                  error={errors.fecha_diagnostico}
+                  error={errors.diagnosis_date}
                   required
                 />
 
                 <TextareaField
                   label="Notas adicionales"
-                  name="notas"
+                  name="notes"
                   placeholder="Tratamiento, medicamentos, observaciones..."
-                  value={formData.notas}
+                  value={formData.notes}
                   onChange={handleInputChange}
-                  error={errors.notas}
+                  error={errors.notes}
                   rows={3}
                 />
 

@@ -114,6 +114,7 @@ class AddAllergyCommand:
 class UpdateAllergyCommand:
     """Command to update an allergy"""
     allergy_id: str
+    patient_id: str
     allergen: Optional[str] = None
     severity: Optional[str] = None
     symptoms: Optional[str] = None
@@ -149,6 +150,7 @@ class AddIllnessCommand:
 class UpdateIllnessCommand:
     """Command to update an illness"""
     illness_id: str
+    patient_id: str
     name: Optional[str] = None
     cie10_code: Optional[str] = None
     symptoms: Optional[str] = None
@@ -161,6 +163,7 @@ class UpdateIllnessCommand:
 class UpdateIllnessStatusCommand:
     """Command to update illness status"""
     illness_id: str
+    patient_id: str
     status: str
 
 
@@ -184,6 +187,7 @@ class AddSurgeryCommand:
 class UpdateSurgeryCommand:
     """Command to update a surgery"""
     surgery_id: str
+    patient_id: str
     name: Optional[str] = None
     surgeon: Optional[str] = None
     hospital: Optional[str] = None
@@ -198,6 +202,7 @@ class UpdateSurgeryCommand:
 class AddSurgeryComplicationCommand:
     """Command to add a surgical complication"""
     surgery_id: str
+    patient_id: str
     complication: str
 
 

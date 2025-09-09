@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertWithIcon } from "@/shared/components/atoms/alert"
@@ -11,6 +12,7 @@ import { MainLayout } from "@/shared/components/templates/main-layout"
 import { Heart, ArrowRight, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -71,9 +73,21 @@ export default function LoginPage() {
       }
 
       const data = await response.json()
-      
-      // TODO: Handle successful login (store token, redirect)
       console.log("Login successful:", data)
+      
+      // Store token and user data in localStorage
+      localStorage.setItem('access_token', data.access_token)
+      localStorage.setItem('user_data', JSON.stringify(data.user))
+      localStorage.setItem('user_role', data.role)
+      
+      // Redirect based on user role
+      if (data.role === 'patient') {
+        router.push('/dashboard')
+      } else if (data.role === 'paramedic') {
+        router.push('/dashboard')
+      } else {
+        router.push('/dashboard')
+      }
       
     } catch (error) {
       setLoginError("Email o contraseña incorrectos. Inténtalo de nuevo.")
@@ -84,15 +98,22 @@ export default function LoginPage() {
 
   return (
     <MainLayout showFooter={false}>
-      <div className="min-h-screen bg-gradient-to-br from-white via-vitalgo-green/5 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Subtle background patterns */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-1/4 w-72 h-72 bg-vitalgo-green/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-400/5 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/3 right-0 w-64 h-64 bg-vitalgo-green/5 rounded-full blur-2xl"></div>
+        </div>
+        <div className="max-w-md w-full space-y-8 relative z-10">
           {/* Logo and Header */}
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 mb-8">
-              <div className="w-12 h-12 bg-vitalgo-green rounded-xl flex items-center justify-center">
-                <Heart className="h-7 w-7 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-vitalgo-dark">VitalGo</span>
+            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
+              <img 
+                src="/logoh-blue-light-background.png" 
+                alt="VitalGo Logo" 
+                className="h-12 w-auto"
+              />
             </Link>
             <h1 className="text-3xl font-light text-vitalgo-dark mb-2">
               Bienvenido de vuelta
@@ -103,7 +124,7 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <Card className="shadow-xl border-0">
+          <Card className="shadow-2xl border border-white/20 backdrop-blur-sm bg-white/95">
             <CardHeader className="space-y-1 pb-6">
               <CardTitle className="text-2xl font-normal text-center text-gray-900">
                 Iniciar Sesión

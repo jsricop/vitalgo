@@ -21,6 +21,15 @@ export const metadata: Metadata = {
     "telemedicina", "gestión hospitalaria", "historia clínica digital"
   ],
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logos-blue-light-background.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/logos-blue-light-background.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -34,16 +43,25 @@ export const metadata: Metadata = {
     siteName: "VitalGo",
     title: "VitalGo - Tu Salud Unificada, La Medicina Simplificada",
     description: "Plataforma líder en salud digital de Colombia. Unifica tu historial médico y optimiza la atención de emergencia.",
+    images: [
+      {
+        url: "/logos-blue-light-background.png",
+        width: 120,
+        height: 120,
+        alt: "VitalGo Logo",
+      },
+    ],
   },
   twitter: {
     card: "summary",
     title: "VitalGo - Tu Salud Unificada, La Medicina Simplificada",
     description: "Plataforma líder en salud digital de Colombia. Unifica tu historial médico y optimiza la atención de emergencia.",
+    images: ["/logos-blue-light-background.png"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#01EF7F",
+  themeColor: "#10B981",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -63,7 +81,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="VitalGo" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-TileColor" content="#01EF7F" />
+        <meta name="msapplication-TileColor" content="#10B981" />
         <meta name="msapplication-tap-highlight" content="no" />
       </head>
       <body

@@ -1,0 +1,16 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Corazón verde con cruz -->
+  <g transform="translate(100, 100)">
+    <!-- Corazón -->
+    <path d="M0,20 C0,-20 -30,-40 -60,-20 C-90,-40 -120,-20 -120,20 C-120,60 0,120 0,120 C0,120 120,60 120,20 C120,-20 90,-40 60,-20 C30,-40 0,-20 0,20 Z" 
+          fill="#00E676"/>
+    
+    <!-- Cruz blanca dentro del corazón -->
+    <g>
+      <!-- Brazo vertical de la cruz -->
+      <rect x="-10" y="-30" width="20" height="60" fill="white" rx="3"/>
+      <!-- Brazo horizontal de la cruz -->
+      <rect x="-30" y="-10" width="60" height="20" fill="white" rx="3"/>
+    </g>
+  </g>
+</svg>
