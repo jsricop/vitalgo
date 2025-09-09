@@ -122,7 +122,7 @@ export default function SignupPacientePage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/v1/auth/register/patient", {
+      const response = await fetch("http://localhost:8000/api/v1/auth/register/patient", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
