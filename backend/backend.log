@@ -1,0 +1,15 @@
+INFO:     Will watch for changes in these directories: ['/Users/jsricop/dev-rq/projects/vitalgo/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [52469] using WatchFiles
+INFO:     Started server process [52483]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:64367 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64384 - "GET /health/detailed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64388 - "GET /health/detailed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64396 - "GET /health HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [52483]
+INFO:     Stopping reloader process [52469]
