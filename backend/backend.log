@@ -1,34 +1,10 @@
 INFO:     Will watch for changes in these directories: ['/Users/jsricop/dev-rq/projects/vitalgo/backend']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [63717] using WatchFiles
-INFO:     Started server process [63727]
+INFO:     Started reloader process [76882] using WatchFiles
+INFO:     Started server process [76892]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:52073 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52164 - "GET /api/v1/auth/health HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:52177 - "GET /docs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52291 - "POST /api/v1/auth/register/patient HTTP/1.1" 422 Unprocessable Content
-INFO:     127.0.0.1:52334 - "POST /api/v1/auth/register/patient HTTP/1.1" 500 Internal Server Error
-INFO:     127.0.0.1:52354 - "GET /api/v1/openapi.json HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52371 - "GET /api/v1/openapi.json HTTP/1.1" 200 OK
-WARNING:  WatchFiles detected changes in 'slices/medical_management/api/routes/auth.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [63727]
-INFO:     Started server process [64943]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     127.0.0.1:52444 - "POST /api/v1/auth/register/patient HTTP/1.1" 500 Internal Server Error
-WARNING:  WatchFiles detected changes in 'slices/medical_management/api/routes/auth.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [64943]
-INFO:     Started server process [65032]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     127.0.0.1:52476 - "POST /api/v1/auth/register/patient HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52507 - "POST /api/v1/auth/register/paramedic HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54553 - "GET /api/v1/patients/me/allergies HTTP/1.1" 403 Forbidden
-INFO:     127.0.0.1:54570 - "GET /api/v1/patients/me/allergies HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:60959 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60999 - "GET /health/detailed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61003 - "GET /health/detailed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64094 - "GET /health HTTP/1.1" 200 OK
