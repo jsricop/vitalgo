@@ -127,66 +127,177 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-# Mock implementations for testing
-class MockCommandHandlers:
+# Simple database operations (inline for now)
+import hashlib
+import uuid
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import os
+from datetime import datetime
+
+# Database connection
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://backend_user:backend_pass@localhost:5432/backend_db")
+
+def get_db_connection():
+    """Get database connection"""
+    return psycopg2.connect(DATABASE_URL)
+
+def hash_password(password: str) -> str:
+    """Simple password hashing using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against hash"""
+    return hashlib.sha256(password.encode()).hexdigest() == hashed
+
+class SimpleHandlers:
+    """Simplified database handlers"""
+    
     async def handle_create_user(self, command):
-        # Mock user creation
-        from dataclasses import dataclass
-        
-        @dataclass
-        class MockUserDto:
-            id: str
-            email: str
-            first_name: str
-            last_name: str
-            role: str
-        
-        return MockUserDto(
-            id="user_123",
-            email=command.email,
-            first_name=command.first_name,
-            last_name=command.last_name,
-            role=command.role
-        )
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                user_id = str(uuid.uuid4())
+                password_hash = hash_password(command.password)
+                
+                cursor.execute("""
+                    INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    RETURNING id, email, first_name, last_name, role, is_active, created_at
+                """, (user_id, command.email, password_hash, command.first_name, command.last_name, 
+                      command.phone, command.role, True))
+                
+                user = cursor.fetchone()
+                conn.commit()
+                
+                return {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "first_name": user["first_name"],
+                    "last_name": user["last_name"],
+                    "role": user["role"],
+                    "is_active": user["is_active"],
+                    "created_at": str(user["created_at"])
+                }
+                
+        except Exception as e:
+            conn.rollback()
+            raise ValueError(f"Error creating user: {str(e)}")
+        finally:
+            conn.close()
     
     async def handle_create_patient(self, command):
-        # Mock patient creation
-        from dataclasses import dataclass
-        
-        @dataclass
-        class MockPatientDto:
-            id: str
-            user_id: str
-            document_number: str
-            blood_type: str
-        
-        return MockPatientDto(
-            id="patient_123",
-            user_id=command.user_id,
-            document_number=command.document_number,
-            blood_type=command.blood_type
-        )
-
-class MockQueryHandlers:
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                patient_id = str(uuid.uuid4())
+                
+                cursor.execute("""
+                    INSERT INTO patients (id, user_id, document_type, document_number, birth_date, 
+                                        gender, blood_type, eps, emergency_contact_name, 
+                                        emergency_contact_phone, address, city, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    RETURNING id, user_id, document_number, blood_type
+                """, (patient_id, command.user_id, command.document_type, command.document_number,
+                      command.birth_date, command.gender, command.blood_type, command.eps,
+                      command.emergency_contact_name, command.emergency_contact_phone,
+                      command.address, command.city))
+                
+                patient = cursor.fetchone()
+                conn.commit()
+                
+                return {
+                    "id": patient["id"],
+                    "user_id": patient["user_id"],
+                    "document_number": patient["document_number"],
+                    "blood_type": patient["blood_type"]
+                }
+                
+        except Exception as e:
+            conn.rollback()
+            raise ValueError(f"Error creating patient: {str(e)}")
+        finally:
+            conn.close()
+    
     async def handle_validate_credentials(self, query):
-        # Always return None for testing - login won't work but registration will
-        return None
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT id, email, password_hash, first_name, last_name, phone, role, is_active, created_at
+                    FROM users 
+                    WHERE email = %s AND is_active = true
+                """, (query.email,))
+                
+                user = cursor.fetchone()
+                if not user:
+                    return None
+                
+                # Verify password
+                if not verify_password(query.password, user["password_hash"]):
+                    return None
+                
+                return {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "first_name": user["first_name"],
+                    "last_name": user["last_name"],
+                    "phone": user["phone"],
+                    "role": user["role"],
+                    "is_active": user["is_active"],
+                    "created_at": str(user["created_at"])
+                }
+                
+        except Exception as e:
+            raise ValueError(f"Error validating credentials: {str(e)}")
+        finally:
+            conn.close()
+    
+    async def handle_get_user_by_id(self, query):
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT id, email, first_name, last_name, phone, role, is_active, created_at
+                    FROM users 
+                    WHERE id = %s AND is_active = true
+                """, (query.user_id,))
+                
+                user = cursor.fetchone()
+                if not user:
+                    return None
+                
+                return {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "first_name": user["first_name"],
+                    "last_name": user["last_name"],
+                    "phone": user["phone"],
+                    "role": user["role"],
+                    "is_active": user["is_active"],
+                    "created_at": str(user["created_at"])
+                }
+                
+        except Exception as e:
+            raise ValueError(f"Error getting user by ID: {str(e)}")
+        finally:
+            conn.close()
 
-# Dependency injection placeholders
+# Dependency injection
 async def get_command_handlers():
     """Get command handlers instance"""
-    return MockCommandHandlers()
+    return SimpleHandlers()
 
 
 async def get_query_handlers():
-    """Get query handlers instance"""
-    return MockQueryHandlers()
+    """Get query handlers instance"""  
+    return SimpleHandlers()
 
 
 @router.post("/register/patient", response_model=dict)
 async def register_patient(
     request: PatientRegistrationRequest,
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleHandlers = Depends(get_command_handlers)
 ):
     """Register a new patient"""
     try:
@@ -204,7 +315,7 @@ async def register_patient(
         
         # Create patient profile
         patient_command = CreatePatientCommand(
-            user_id=user_dto.id,
+            user_id=user_dto["id"],
             document_type=request.document_type,
             document_number=request.document_number,
             birth_date=request.birth_date,
@@ -234,7 +345,7 @@ async def register_patient(
 @router.post("/register/paramedic", response_model=dict)
 async def register_paramedic(
     request: ParamedicRegistrationRequest,
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleHandlers = Depends(get_command_handlers)
 ):
     """Register a new paramedic"""
     try:
@@ -252,7 +363,7 @@ async def register_paramedic(
         
         # Create paramedic profile
         paramedic_command = CreateParamedicCommand(
-            user_id=user_dto.id,
+            user_id=user_dto["id"],
             medical_license=request.medical_license,
             specialty=request.specialty,
             institution=request.institution,
@@ -278,7 +389,7 @@ async def register_paramedic(
 @router.post("/login", response_model=LoginResponse)
 async def login(
     request: LoginRequest,
-    query_handlers: PatientQueryHandlers = Depends(get_query_handlers)
+    query_handlers: SimpleHandlers = Depends(get_query_handlers)
 ):
     """User login endpoint"""
     try:
@@ -295,7 +406,7 @@ async def login(
                 detail="Invalid email or password"
             )
         
-        if not user_dto.is_active:
+        if not user_dto["is_active"]:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Account is deactivated"
@@ -303,22 +414,22 @@ async def login(
         
         # Create access token
         access_token = create_access_token({
-            "id": user_dto.id,
-            "email": user_dto.email,
-            "role": user_dto.role
+            "id": user_dto["id"],
+            "email": user_dto["email"],
+            "role": user_dto["role"]
         })
         
         return LoginResponse(
             access_token=access_token,
             token_type="bearer",
             user={
-                "id": user_dto.id,
-                "email": user_dto.email,
-                "first_name": user_dto.first_name,
-                "last_name": user_dto.last_name,
-                "role": user_dto.role
+                "id": user_dto["id"],
+                "email": user_dto["email"],
+                "first_name": user_dto["first_name"],
+                "last_name": user_dto["last_name"],
+                "role": user_dto["role"]
             },
-            role=user_dto.role,
+            role=user_dto["role"],
             expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
         )
         
@@ -331,7 +442,7 @@ async def login(
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
     current_user: dict = Depends(verify_token),
-    query_handlers: PatientQueryHandlers = Depends(get_query_handlers)
+    query_handlers: SimpleHandlers = Depends(get_query_handlers)
 ):
     """Get current user information"""
     try:
@@ -344,14 +455,14 @@ async def get_current_user(
             raise HTTPException(status_code=404, detail="User not found")
         
         return UserResponse(
-            id=user_dto.id,
-            email=user_dto.email,
-            first_name=user_dto.first_name,
-            last_name=user_dto.last_name,
-            phone=user_dto.phone,
-            role=user_dto.role,
-            is_active=user_dto.is_active,
-            created_at=user_dto.created_at
+            id=user_dto["id"],
+            email=user_dto["email"],
+            first_name=user_dto["first_name"],
+            last_name=user_dto["last_name"],
+            phone=user_dto["phone"],
+            role=user_dto["role"],
+            is_active=user_dto["is_active"],
+            created_at=user_dto["created_at"]
         )
         
     except HTTPException:

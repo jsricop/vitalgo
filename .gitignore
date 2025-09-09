@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+.next/
+dist/
+build/
+*.pyc
+__pycache__/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+backend.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python virtual environments
+venv/
+env/
+.venv/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Sensitive configuration
+config/production.py
+config/local.py
+secrets.json
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Package manager lock files (keep these for reproducible builds)
+# package-lock.json
+# poetry.lock
+
+# Cache directories
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Docker volumes
+postgres_data/
+redis_data/
