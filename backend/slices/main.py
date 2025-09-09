@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from slices.core.config import settings
 from slices.health_check.api.routes import router as health_router
+from slices.medical_management.api.routes import api_router as medical_router
 
 
 def create_app() -> FastAPI:
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(health_router, tags=["health"])
+    app.include_router(medical_router, tags=["medical"])
 
     return app
 
