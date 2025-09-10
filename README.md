@@ -28,11 +28,31 @@ vitalgo/
 └── stop-local-deploy.sh        # 🛑 Script de parada
 ```
 
+## 🌿 Estrategia de Branches
+
+| Branch | Propósito | Despliegue | Comando |
+|--------|-----------|------------|---------|
+| **main** | Código listo para producción | Manual → AWS Production | TBD |
+| **test** | Pruebas y Testing | AWS Free Tier | `./deploy-free-tier.sh` |
+| **dev** | Desarrollo activo | Local | `./start-local-deploy.sh` |
+
+### 📋 Flujo de Trabajo
+1. **Desarrollar**: Trabajar en `dev` branch
+2. **Testing**: Merge a `test` → Deploy AWS Free Tier para pruebas
+3. **Producción**: Merge a `main` → Deploy producción
+
 ## 🚀 Inicio Rápido
 
-### Levantar todos los servicios:
+### Desarrollo Local (branch dev):
 ```bash
+git checkout dev
 ./start-local-deploy.sh
+```
+
+### Testing AWS Free Tier (branch test):
+```bash
+git checkout test
+./deploy-free-tier.sh
 ```
 
 Este script automáticamente:
@@ -244,9 +264,10 @@ docker-compose build --no-cache
 ## 🎯 Comandos Esenciales
 
 ```bash
-# Inicio y parada
-./start-local-deploy.sh     # Levantar todo el stack
-./stop-local-deploy.sh      # Parar todo el stack
+# Cambio de branches y despliegue
+git checkout dev && ./start-local-deploy.sh      # Desarrollo local
+git checkout test && ./deploy-free-tier.sh       # Testing AWS Free Tier
+./stop-local-deploy.sh                           # Parar stack local
 
 # Desarrollo individual
 cd backend && poetry run uvicorn slices.main:app --reload
@@ -261,4 +282,11 @@ cd backend && poetry run black . && poetry run isort .
 cd frontend && npm run format
 ```
 
-¡Listo para desarrollo Full Stack! 🚀
+## 💰 Monitoreo AWS (Branch Test)
+
+Cuando uses el branch `test` con AWS Free Tier:
+- 🔔 Alertas configuradas automáticamente ($1, $5, $10)
+- 📊 Monitorea [AWS Billing Dashboard](https://console.aws.amazon.com/billing/)
+- 🆓 750 hrs/mes cada uno: EC2 t2.micro + RDS db.t3.micro = 24/7 gratis
+
+¡Listo para desarrollo Full Stack con deploy a AWS Free Tier! 🚀
