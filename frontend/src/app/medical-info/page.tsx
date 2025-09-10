@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { AlertWithIcon } from "@/shared/components/atoms/alert"
 import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
-import { Heart, Plus, FileText, Stethoscope, Scissors, AlertTriangle, ArrowLeft } from "lucide-react"
+import { FileText, Stethoscope, Scissors, AlertTriangle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 interface MedicalData {
@@ -65,10 +65,10 @@ export default function MedicalInfoPage() {
     }
 
     setUser(parsedUser)
-    fetchMedicalData(token, parsedUser.id)
+    fetchMedicalData(token)
   }, [router])
 
-  const fetchMedicalData = async (token: string, userId: string) => {
+  const fetchMedicalData = async (token: string) => {
     try {
       // Fetch allergies
       const allergiesResponse = await fetch('http://localhost:8000/api/v1/patients/me/allergies', {
@@ -197,8 +197,7 @@ export default function MedicalInfoPage() {
                   </CardTitle>
                   <Link href="/medical-info/alergias">
                     <Button size="sm" className="bg-vitalgo-green hover:bg-vitalgo-green/90">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
+                      Editar la información
                     </Button>
                   </Link>
                 </div>
@@ -210,7 +209,7 @@ export default function MedicalInfoPage() {
                     <p>No hay alergias registradas</p>
                     <Link href="/medical-info/alergias">
                       <Button className="mt-4 bg-vitalgo-green hover:bg-vitalgo-green/90">
-                        Agregar primera alergia
+                        Editar la información
                       </Button>
                     </Link>
                   </div>
@@ -220,11 +219,11 @@ export default function MedicalInfoPage() {
                       <div key={allergy.id} className="border rounded-lg p-4 bg-white">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-medium text-gray-900">{allergy.allergen || allergy.nombre}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{allergy.symptoms || allergy.reaction || allergy.notas}</p>
+                            <h3 className="font-medium text-gray-900">{allergy.allergen}</h3>
+                            <p className="text-sm text-gray-600 mt-1">{allergy.reaction}</p>
                           </div>
-                          <Badge className={getSeverityColor(allergy.severity || allergy.severidad)}>
-                            {allergy.severity || allergy.severidad}
+                          <Badge className={getSeverityColor(allergy.severity)}>
+                            {allergy.severity}
                           </Badge>
                         </div>
                       </div>
@@ -244,8 +243,7 @@ export default function MedicalInfoPage() {
                   </CardTitle>
                   <Link href="/medical-info/enfermedades">
                     <Button size="sm" className="bg-vitalgo-green hover:bg-vitalgo-green/90">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
+                      Editar la información
                     </Button>
                   </Link>
                 </div>
@@ -257,7 +255,7 @@ export default function MedicalInfoPage() {
                     <p>No hay enfermedades registradas</p>
                     <Link href="/medical-info/enfermedades">
                       <Button className="mt-4 bg-vitalgo-green hover:bg-vitalgo-green/90">
-                        Agregar primera enfermedad
+                        Editar la información
                       </Button>
                     </Link>
                   </div>
@@ -267,10 +265,10 @@ export default function MedicalInfoPage() {
                       <div key={illness.id} className="border rounded-lg p-4 bg-white">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-medium text-gray-900">{illness.name || illness.nombre}</h3>
-                            {(illness.diagnosed_date || illness.fecha_diagnostico) && (
+                            <h3 className="font-medium text-gray-900">{illness.name}</h3>
+                            {illness.diagnosed_date && (
                               <p className="text-sm text-gray-600 mt-1">
-                                Diagnosticada: {new Date(illness.diagnosed_date || illness.fecha_diagnostico).toLocaleDateString('es-ES')}
+                                Diagnosticada: {new Date(illness.diagnosed_date).toLocaleDateString('es-ES')}
                               </p>
                             )}
                             {illness.treatment && (
@@ -279,8 +277,8 @@ export default function MedicalInfoPage() {
                               </p>
                             )}
                           </div>
-                          <Badge className={getStatusColor(illness.status || illness.estado)}>
-                            {illness.status || illness.estado}
+                          <Badge className={getStatusColor(illness.status)}>
+                            {illness.status}
                           </Badge>
                         </div>
                       </div>
@@ -300,8 +298,7 @@ export default function MedicalInfoPage() {
                   </CardTitle>
                   <Link href="/medical-info/cirugias">
                     <Button size="sm" className="bg-vitalgo-green hover:bg-vitalgo-green/90">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
+                      Editar la información
                     </Button>
                   </Link>
                 </div>
@@ -313,7 +310,7 @@ export default function MedicalInfoPage() {
                     <p>No hay cirugías registradas</p>
                     <Link href="/medical-info/cirugias">
                       <Button className="mt-4 bg-vitalgo-green hover:bg-vitalgo-green/90">
-                        Agregar primera cirugía
+                        Editar la información
                       </Button>
                     </Link>
                   </div>
@@ -323,28 +320,23 @@ export default function MedicalInfoPage() {
                       <div key={surgery.id} className="border rounded-lg p-4 bg-white">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">{surgery.name || surgery.nombre}</h3>
-                            {(surgery.surgery_date || surgery.date || surgery.fecha) && (
+                            <h3 className="font-medium text-gray-900">{surgery.name}</h3>
+                            {surgery.date && (
                               <p className="text-sm text-gray-600 mt-1">
-                                Fecha: {new Date(surgery.surgery_date || surgery.date || surgery.fecha).toLocaleDateString('es-ES')}
+                                Fecha: {new Date(surgery.date).toLocaleDateString('es-ES')}
                               </p>
                             )}
                             <p className="text-sm text-gray-600">
                               Hospital: {surgery.hospital}
                             </p>
-                            {surgery.surgeon && (
-                              <p className="text-sm text-gray-600">
-                                Cirujano: {surgery.surgeon}
-                              </p>
-                            )}
-                            {(surgery.doctor && !surgery.surgeon) && (
+                            {surgery.doctor && (
                               <p className="text-sm text-gray-600">
                                 Doctor: {surgery.doctor}
                               </p>
                             )}
-                            {(surgery.description || surgery.notes || surgery.notas) && (
+                            {surgery.notes && (
                               <p className="text-sm text-gray-600 mt-2">
-                                <strong>Notas:</strong> {surgery.description || surgery.notes || surgery.notas}
+                                <strong>Notas:</strong> {surgery.notes}
                               </p>
                             )}
                           </div>
