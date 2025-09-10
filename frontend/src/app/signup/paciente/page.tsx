@@ -59,7 +59,8 @@ export default function SignupPacientePage() {
   const [isLoadingEps, setIsLoadingEps] = useState(false)
   const [epsSearch, setEpsSearch] = useState("")
   const [showEpsDropdown, setShowEpsDropdown] = useState(false)
-  const [filteredEpsOptions, setFilteredEpsOptions] = useState<Array<{ value: string; label: string }>>([])  
+  const [filteredEpsOptions, setFilteredEpsOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [selectedEpsIndex, setSelectedEpsIndex] = useState(-1)
 
   // Fetch EPS list on component mount
   useEffect(() => {
@@ -101,6 +102,8 @@ export default function SignupPacientePage() {
       )
       setFilteredEpsOptions(filtered)
     }
+    // Reset selection when options change
+    setSelectedEpsIndex(-1)
   }, [epsSearch, epsOptions])
 
   // Close EPS dropdown when clicking outside
@@ -118,6 +121,20 @@ export default function SignupPacientePage() {
     }
   }, [showEpsDropdown])
 
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedEpsIndex >= 0 && showEpsDropdown) {
+      const dropdownElement = document.querySelector('.eps-dropdown')
+      const selectedElement = dropdownElement?.children[selectedEpsIndex] as HTMLElement
+      if (selectedElement) {
+        selectedElement.scrollIntoView({
+          block: 'nearest',
+          behavior: 'smooth'
+        })
+      }
+    }
+  }, [selectedEpsIndex, showEpsDropdown])
+
   const handleGoToCompleteProfile = () => {
     setShowSuccessModal(false)
     router.push('/complete-medical-profile')
@@ -128,6 +145,7 @@ export default function SignupPacientePage() {
     setEpsSearch(value)
     setFormData(prev => ({ ...prev, eps: value }))
     setShowEpsDropdown(true)
+    setSelectedEpsIndex(-1) // Reset selection when typing
     
     // Clear error if exists
     if (errors.eps) {
@@ -139,10 +157,41 @@ export default function SignupPacientePage() {
     setFormData(prev => ({ ...prev, eps: eps.value }))
     setEpsSearch(eps.label)
     setShowEpsDropdown(false)
+    setSelectedEpsIndex(-1)
     
     // Clear error if exists
     if (errors.eps) {
       setErrors(prev => ({ ...prev, eps: "" }))
+    }
+  }
+
+  const handleEpsKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showEpsDropdown || filteredEpsOptions.length === 0) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedEpsIndex(prev => 
+          prev < filteredEpsOptions.length - 1 ? prev + 1 : 0
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedEpsIndex(prev => 
+          prev > 0 ? prev - 1 : filteredEpsOptions.length - 1
+        )
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedEpsIndex >= 0 && selectedEpsIndex < filteredEpsOptions.length) {
+          handleEpsSelect(filteredEpsOptions[selectedEpsIndex])
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        setShowEpsDropdown(false)
+        setSelectedEpsIndex(-1)
+        break
     }
   }
 
@@ -563,11 +612,13 @@ export default function SignupPacientePage() {
                         placeholder={isLoadingEps ? "Cargando EPS..." : "Busca tu EPS..."}
                         value={epsSearch}
                         onChange={handleEpsSearch}
+                        onKeyDown={handleEpsKeyDown}
                         onFocus={() => setShowEpsDropdown(true)}
                         disabled={isLoadingEps}
                         className={`w-full px-3 py-2 pl-10 border rounded-lg focus:ring-2 focus:ring-vitalgo-green focus:border-transparent transition-colors ${
                           errors.eps ? 'border-red-300' : 'border-gray-300'
                         }`}
+                        autoComplete="off"
                       />
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       {showEpsDropdown && (
@@ -576,13 +627,18 @@ export default function SignupPacientePage() {
                     </div>
                     
                     {showEpsDropdown && !isLoadingEps && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="eps-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {filteredEpsOptions.length > 0 ? (
                           filteredEpsOptions.map((eps, index) => (
                             <div
                               key={index}
-                              className="px-3 py-2 hover:bg-vitalgo-green/10 cursor-pointer transition-colors"
+                              className={`px-3 py-2 cursor-pointer transition-colors ${
+                                index === selectedEpsIndex 
+                                  ? 'bg-vitalgo-green/20 text-vitalgo-dark' 
+                                  : 'hover:bg-vitalgo-green/10'
+                              }`}
                               onClick={() => handleEpsSelect(eps)}
+                              onMouseEnter={() => setSelectedEpsIndex(index)}
                             >
                               {eps.label}
                             </div>

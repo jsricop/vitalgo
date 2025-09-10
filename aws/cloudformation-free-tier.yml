@@ -1,0 +1,402 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VitalGo Medical Platform - AWS Free Tier Optimized Configuration'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: vitalgo
+    Description: Name of the project
+  
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues: [development, staging]
+    Description: Environment name
+  
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    Description: Password for RDS PostgreSQL database
+    MinLength: 8
+  
+  JWTSecretKey:
+    Type: String
+    NoEcho: true
+    Description: Secret key for JWT tokens
+    MinLength: 32
+
+Resources:
+  # VPC Configuration (Free Tier)
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-vpc-free
+
+  # Internet Gateway (Free Tier)
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-igw
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  # Public Subnet (Single AZ for Free Tier)
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-subnet
+
+  # Private Subnet for RDS (Required for RDS, but still Free Tier)
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-private-subnet-1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.0.3.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-private-subnet-2
+
+  # Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  # Security Groups
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${ProjectName}-ec2-sg
+      GroupDescription: Security group for EC2 instance
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-ec2-sg
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${ProjectName}-rds-sg
+      GroupDescription: Security group for RDS PostgreSQL
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-rds-sg
+
+  # RDS Database (Free Tier: db.t3.micro or db.t4g.micro)
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS database
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-db-subnet-group
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub ${ProjectName}-database-free
+      DBName: vitalgo_db
+      Engine: postgres
+      EngineVersion: '15.4'
+      DBInstanceClass: db.t3.micro  # Free Tier eligible
+      AllocatedStorage: 20  # Free Tier: up to 20GB
+      StorageType: gp2  # Free Tier: General Purpose SSD
+      StorageEncrypted: false  # Encryption not available in Free Tier
+      MasterUsername: vitalgo_user
+      MasterUserPassword: !Ref DatabasePassword
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      BackupRetentionPeriod: 1  # Minimal backup for Free Tier
+      MultiAZ: false  # Single AZ for Free Tier
+      PubliclyAccessible: false
+      DeletionProtection: false  # Disable for easy cleanup in dev
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-database-free
+
+  # EC2 Instance (t2.micro - Free Tier)
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro  # Free Tier eligible
+      ImageId: ami-0230bd60aa48260c6  # Amazon Linux 2023 AMI (update based on region)
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Update system
+          yum update -y
+          
+          # Install Docker
+          yum install -y docker
+          service docker start
+          usermod -a -G docker ec2-user
+          
+          # Install Docker Compose
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          
+          # Install Git
+          yum install -y git
+          
+          # Clone repository
+          cd /home/ec2-user
+          git clone https://github.com/jsricop/vitalgo.git
+          cd vitalgo
+          
+          # Create environment file
+          cat > .env <<EOL
+          DATABASE_URL=postgresql://${Database.Endpoint.Address}:5432/vitalgo_db
+          DATABASE_USER=vitalgo_user
+          DATABASE_PASSWORD=${DatabasePassword}
+          SECRET_KEY=${JWTSecretKey}
+          ENVIRONMENT=production
+          NEXT_PUBLIC_API_URL=http://${EC2Instance.PublicIp}:8000
+          EOL
+          
+          # Build and run with Docker Compose
+          docker-compose -f docker-compose.prod.yml up -d
+          
+          # Setup cron for auto-restart on reboot
+          echo "@reboot cd /home/ec2-user/vitalgo && docker-compose -f docker-compose.prod.yml up -d" | crontab -
+          
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-ec2-free-tier
+
+  # Elastic IP (Free Tier: 1 EIP when attached to running instance)
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref EC2Instance
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-eip
+
+  # IAM Role for EC2
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ECRAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # CloudWatch Log Groups (Free Tier: 5GB/month)
+  ApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/ec2/${ProjectName}
+      RetentionInDays: 7  # Minimize retention for Free Tier
+
+  # Key Pair Parameter (Must be created manually in AWS Console)
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+    Default: vitalgo-key
+
+  # S3 Bucket for static assets (Free Tier: 5GB storage)
+  StaticAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-static-assets-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, HEAD]
+            AllowedOrigins: ['*']
+            MaxAge: 3600
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-static-bucket
+
+  # S3 Bucket Policy for public read
+  StaticAssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticAssetsBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${StaticAssetsBucket.Arn}/*'
+
+Outputs:
+  VPCId:
+    Description: ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC
+
+  PublicIP:
+    Description: Public IP address of EC2 instance
+    Value: !Ref ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicIP
+
+  DatabaseEndpoint:
+    Description: RDS Database Endpoint
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-DB-Endpoint
+
+  ApplicationURL:
+    Description: Application URL
+    Value: !Sub http://${ElasticIP}
+    Export:
+      Name: !Sub ${AWS::StackName}-AppURL
+
+  APIEndpoint:
+    Description: API Endpoint
+    Value: !Sub http://${ElasticIP}:8000
+    Export:
+      Name: !Sub ${AWS::StackName}-APIEndpoint
+
+  SSHCommand:
+    Description: SSH connection command
+    Value: !Sub ssh -i ~/.ssh/${KeyPairName}.pem ec2-user@${ElasticIP}
+    Export:
+      Name: !Sub ${AWS::StackName}-SSH
+
+  StaticAssetsBucket:
+    Description: S3 Bucket for static assets
+    Value: !Ref StaticAssetsBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-StaticBucket
+
+  FreeTierNotes:
+    Description: Important Free Tier Information
+    Value: |
+      FREE TIER LIMITS:
+      - EC2: 750 hours/month of t2.micro (covers 24/7 operation)
+      - RDS: 750 hours/month of db.t3.micro + 20GB storage
+      - S3: 5GB storage + 20,000 GET + 2,000 PUT requests
+      - Data Transfer: 15GB/month out
+      - CloudWatch: 5GB logs ingestion
+      IMPORTANT: Monitor AWS Billing Dashboard regularly!

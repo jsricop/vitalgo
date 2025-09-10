@@ -761,3 +761,65 @@ async def get_eps_list(
             cursor.close()
             conn.close()
         raise HTTPException(status_code=500, detail=f"Error retrieving EPS list: {str(e)}")
+
+
+@router.get("/check-email")
+async def check_email_exists(email: str):
+    """Check if email already exists in the system"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT id, email, is_active 
+            FROM users 
+            WHERE email = %s
+        """, (email.lower(),))
+        
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        return {
+            "exists": user is not None,
+            "is_active": user["is_active"] if user else None,
+            "email": email
+        }
+        
+    except Exception as e:
+        if 'conn' in locals():
+            cursor.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error checking email: {str(e)}")
+
+
+@router.get("/check-document")
+async def check_document_exists(document_type: str, document_number: str):
+    """Check if document already exists in the system"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT p.id, p.document_type, p.document_number, u.email, u.is_active
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.document_type = %s AND p.document_number = %s
+        """, (document_type, document_number))
+        
+        patient = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        return {
+            "exists": patient is not None,
+            "document_type": document_type,
+            "document_number": document_number,
+            "is_active": patient["is_active"] if patient else None
+        }
+        
+    except Exception as e:
+        if 'conn' in locals():
+            cursor.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error checking document: {str(e)}")
