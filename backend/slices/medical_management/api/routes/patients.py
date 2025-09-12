@@ -24,6 +24,7 @@ from ...application.queries import (
     GetPatientAllergiesQuery, GetPatientIllnessesQuery, GetPatientSurgeriesQuery
 )
 from ...application.handlers.patient_handlers import PatientCommandHandlers, PatientQueryHandlers
+from slices.core.config import settings
 
 # Import auth verification from auth routes
 from .auth import verify_token
@@ -124,13 +125,7 @@ import os
 # Database connection - SECURE VERSION
 # Database connection - SECURE VERSION
 # NEVER hardcode credentials - always use environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise EnvironmentError(
-        "DATABASE_URL environment variable is required. "
-        "Please set it before starting the application. "
-        "Example: export DATABASE_URL='postgresql://user:password@host:port/database'"
-    )
+DATABASE_URL = settings.database_url
 
 # Convert asyncpg URL to psycopg2 format if needed
 if "postgresql+asyncpg://" in DATABASE_URL:
@@ -191,7 +186,7 @@ class SimpleMedicalHandlers:
                     SELECT id, user_id, document_type, document_number, birth_date, 
                            gender, blood_type, eps, emergency_contact_name, emergency_contact_phone
                     FROM patients 
-                    WHERE user_id = %s AND deleted_at IS NULL
+                    WHERE user_id = %s
                 """, (user_id,))
                 
                 patient = cursor.fetchone()
@@ -199,7 +194,7 @@ class SimpleMedicalHandlers:
                 
         except Exception as e:
             # Log error securely without exposing sensitive data
-            print(f"Database error in handle_get_patient_by_user_id: Patient lookup failed")
+            print(f"Database error in handle_get_patient_by_user_id: {str(e)}")
             raise ValueError("Error retrieving patient information")
         finally:
             conn.close()
@@ -308,9 +303,9 @@ class SimpleMedicalHandlers:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
                     SELECT id, allergen, severity, symptoms, treatment, diagnosed_date, 
-                           last_reaction_date, notes, is_active, created_at, updated_at
+                           notes, is_active, created_at, updated_at
                     FROM allergies 
-                    WHERE patient_id = %s AND is_active = true AND deleted_at IS NULL
+                    WHERE patient_id = %s AND is_active = true
                     ORDER BY created_at DESC
                 """, (query.patient_id,))
                 
@@ -332,7 +327,7 @@ class SimpleMedicalHandlers:
                     SELECT id, name, status, diagnosed_date, cie10_code, symptoms, 
                            treatment, prescribed_by, is_chronic, notes, created_at, updated_at
                     FROM illnesses 
-                    WHERE patient_id = %s AND deleted_at IS NULL
+                    WHERE patient_id = %s
                     ORDER BY created_at DESC
                 """, (query.patient_id,))
                 
@@ -352,11 +347,10 @@ class SimpleMedicalHandlers:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
                     SELECT id, name, surgery_date, surgeon, hospital, description, 
-                           diagnosis, complications, recovery_notes, anesthesia_type, 
-                           surgery_duration_minutes, follow_up_required, follow_up_date, 
-                           notes, created_at, updated_at
+                           diagnosis, anesthesia_type, surgery_duration_minutes, 
+                           notes, is_active, created_at, updated_at
                     FROM surgeries 
-                    WHERE patient_id = %s AND deleted_at IS NULL
+                    WHERE patient_id = %s
                     ORDER BY surgery_date DESC
                 """, (query.patient_id,))
                 
@@ -1274,9 +1268,7 @@ async def get_patient_profile(
         from psycopg2.extras import RealDictCursor
         import os
         
-        DATABASE_URL = os.getenv("DATABASE_URL")
-        if not DATABASE_URL:
-            raise EnvironmentError("DATABASE_URL environment variable is required")
+        DATABASE_URL = settings.database_url
         # Convert asyncpg URL to psycopg2 format if needed
         if "postgresql+asyncpg://" in DATABASE_URL:
             DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
@@ -1339,9 +1331,7 @@ async def update_patient_profile(
         from psycopg2.extras import RealDictCursor
         import os
         
-        DATABASE_URL = os.getenv("DATABASE_URL")
-        if not DATABASE_URL:
-            raise EnvironmentError("DATABASE_URL environment variable is required")
+        DATABASE_URL = settings.database_url
         # Convert asyncpg URL to psycopg2 format if needed
         if "postgresql+asyncpg://" in DATABASE_URL:
             DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")

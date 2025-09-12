@@ -7,16 +7,10 @@ import os
 import psycopg2
 
 from .auth import verify_token
+from slices.core.config import settings
 
-# Database connection - SECURE VERSION
-# NEVER hardcode credentials - always use environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise EnvironmentError(
-        "DATABASE_URL environment variable is required. "
-        "Please set it before starting the application. "
-        "Example: export DATABASE_URL='postgresql://user:password@host:port/database'"
-    )
+# Database connection - using pydantic settings
+DATABASE_URL = settings.database_url
 
 # Convert asyncpg URL to psycopg2 format if needed
 if "postgresql+asyncpg://" in DATABASE_URL:

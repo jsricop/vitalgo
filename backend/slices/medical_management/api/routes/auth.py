@@ -16,6 +16,7 @@ from passlib.context import CryptContext
 from ...application.commands import CreateUserCommand, CreatePatientCommand, CreateParamedicCommand
 from ...application.queries import ValidateUserCredentialsQuery, GetUserByEmailQuery
 from ...application.handlers.patient_handlers import PatientCommandHandlers, PatientQueryHandlers
+from slices.core.config import settings
 
 # Pydantic models for API
 class UserRegistrationRequest(BaseModel):
@@ -108,18 +109,11 @@ class EPSResponse(BaseModel):
     status: str
 
 
-# JWT configuration - SECURE VERSION
-# NEVER hardcode secrets - always use environment variables
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise EnvironmentError(
-        "SECRET_KEY environment variable is required. "
-        "Please set a secure secret key before starting the application. "
-        "Example: export SECRET_KEY='your-secure-secret-key-here'"
-    )
+# JWT configuration - using pydantic settings
+SECRET_KEY = settings.secret_key
 
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # Default 24 hours
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -164,18 +158,10 @@ from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 
-# Database connection
-# Database connection - SECURE VERSION  
-# NEVER hardcode credentials - always use environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise EnvironmentError(
-        "DATABASE_URL environment variable is required. "
-        "Please set it before starting the application. "
-        "Example: export DATABASE_URL='postgresql://user:password@host:port/database'"
-    )
+# Database connection - using pydantic settings
+DATABASE_URL = settings.database_url
 
-# Convert asyncpg URL to psycopg2 format if needed
+# Convert asyncpg URL to psycopg2 format if needed for some libraries
 if "postgresql+asyncpg://" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
 
@@ -201,15 +187,15 @@ class SimpleHandlers:
                 user_id = str(uuid.uuid4())
                 password_hash = hash_password(command.password)
                 
-                # Set is_active based on role - paramedics start inactive for approval
-                is_active = True if command.role != "paramedic" else False
+                # Set status based on role - paramedics start inactive for approval
+                status = "active" if command.role != "paramedic" else "inactive"
                 
                 cursor.execute("""
-                    INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at)
+                    INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, status, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-                    RETURNING id, email, first_name, last_name, role, is_active, created_at
+                    RETURNING id, email, first_name, last_name, role, status, created_at
                 """, (user_id, command.email, password_hash, command.first_name, command.last_name, 
-                      command.phone, command.role, is_active))
+                      command.phone, command.role, status))
                 
                 user = cursor.fetchone()
                 conn.commit()
@@ -220,7 +206,7 @@ class SimpleHandlers:
                     "first_name": user["first_name"],
                     "last_name": user["last_name"],
                     "role": user["role"],
-                    "is_active": user["is_active"],
+                    "is_active": user["status"] == "active",
                     "created_at": str(user["created_at"])
                 }
                 
@@ -268,9 +254,9 @@ class SimpleHandlers:
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
-                    SELECT id, email, password_hash, first_name, last_name, phone, role, is_active, created_at
+                    SELECT id, email, password_hash, first_name, last_name, phone, role, status, created_at
                     FROM users 
-                    WHERE email = %s AND is_active = true
+                    WHERE email = %s AND status = 'active'
                 """, (query.email,))
                 
                 user = cursor.fetchone()
@@ -288,7 +274,7 @@ class SimpleHandlers:
                     "last_name": user["last_name"],
                     "phone": user["phone"],
                     "role": user["role"],
-                    "is_active": user["is_active"],
+                    "is_active": user["status"] == "active",
                     "created_at": str(user["created_at"])
                 }
                 
@@ -302,9 +288,9 @@ class SimpleHandlers:
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
-                    SELECT id, email, first_name, last_name, phone, role, is_active, created_at
+                    SELECT id, email, first_name, last_name, phone, role, status, created_at
                     FROM users 
-                    WHERE id = %s AND is_active = true
+                    WHERE id = %s AND status = 'active'
                 """, (query.user_id,))
                 
                 user = cursor.fetchone()
@@ -318,7 +304,7 @@ class SimpleHandlers:
                     "last_name": user["last_name"],
                     "phone": user["phone"],
                     "role": user["role"],
-                    "is_active": user["is_active"],
+                    "is_active": user["status"] == "active",
                     "created_at": str(user["created_at"])
                 }
                 
@@ -503,29 +489,37 @@ async def login(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
-    current_user: dict = Depends(verify_token),
-    query_handlers: SimpleHandlers = Depends(get_query_handlers)
+    current_user: dict = Depends(verify_token)
 ):
     """Get current user information"""
     try:
-        from ...application.queries import GetUserByIdQuery
-        
-        query = GetUserByIdQuery(user_id=current_user["sub"])
-        user_dto = await query_handlers.handle_get_user_by_id(query)
-        
-        if not user_dto:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        return UserResponse(
-            id=user_dto["id"],
-            email=user_dto["email"],
-            first_name=user_dto["first_name"],
-            last_name=user_dto["last_name"],
-            phone=user_dto["phone"],
-            role=user_dto["role"],
-            is_active=user_dto["is_active"],
-            created_at=user_dto["created_at"]
-        )
+        # Simple direct query instead of using handlers
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT id, email, first_name, last_name, phone, role, status, created_at
+                    FROM users 
+                    WHERE id = %s AND status = 'active'
+                """, (current_user["sub"],))
+                
+                user = cursor.fetchone()
+                if not user:
+                    raise HTTPException(status_code=404, detail="User not found")
+                
+                return UserResponse(
+                    id=user["id"],
+                    email=user["email"],
+                    first_name=user["first_name"],
+                    last_name=user["last_name"],
+                    phone=user["phone"] or "",
+                    role=user["role"],
+                    is_active=user["status"] == "active",
+                    created_at=str(user["created_at"])
+                )
+                
+        finally:
+            conn.close()
         
     except HTTPException:
         raise
@@ -640,7 +634,7 @@ async def update_user(
             UPDATE users 
             SET {', '.join(update_fields)}
             WHERE id = %s
-            RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
+            RETURNING id, email, first_name, last_name, phone, role, status, created_at
         """
         
         cursor.execute(update_query, params)
@@ -660,7 +654,7 @@ async def update_user(
             last_name=updated_user["last_name"],
             phone=updated_user["phone"],
             role=updated_user["role"],
-            is_active=updated_user["is_active"],
+            is_active=updated_user["status"] == "active",
             created_at=str(updated_user["created_at"])
         )
         
@@ -771,7 +765,7 @@ async def check_email_exists(email: str):
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute("""
-            SELECT id, email, is_active 
+            SELECT id, email, status 
             FROM users 
             WHERE email = %s
         """, (email.lower(),))
@@ -782,7 +776,7 @@ async def check_email_exists(email: str):
         
         return {
             "exists": user is not None,
-            "is_active": user["is_active"] if user else None,
+            "is_active": user["status"] == "active" if user else None,
             "email": email
         }
         
@@ -801,7 +795,7 @@ async def check_document_exists(document_type: str, document_number: str):
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute("""
-            SELECT p.id, p.document_type, p.document_number, u.email, u.is_active
+            SELECT p.id, p.document_type, p.document_number, u.email, u.status
             FROM patients p
             JOIN users u ON p.user_id = u.id
             WHERE p.document_type = %s AND p.document_number = %s
@@ -815,7 +809,7 @@ async def check_document_exists(document_type: str, document_number: str):
             "exists": patient is not None,
             "document_type": document_type,
             "document_number": document_number,
-            "is_active": patient["is_active"] if patient else None
+            "is_active": patient["status"] == "active" if patient else None
         }
         
     except Exception as e:

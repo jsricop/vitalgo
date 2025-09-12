@@ -2,20 +2,20 @@
 Database configuration and session management for VitalGo
 """
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from contextlib import contextmanager
-from typing import Generator
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 # Database URL from environment or default
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql+psycopg2://backend_user:backend_pass@localhost:5432/backend_db"
+    "postgresql+asyncpg://backend_user:backend_pass@localhost:5432/backend_db"
 )
 
-# Create SQLAlchemy engine
-engine = create_engine(
+# Create async SQLAlchemy engine
+engine = create_async_engine(
     DATABASE_URL,
     pool_size=20,
     max_overflow=0,
@@ -23,39 +23,43 @@ engine = create_engine(
     echo=False  # Set to True for SQL logging in development
 )
 
-# Create SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create AsyncSessionLocal class
+AsyncSessionLocal = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 # Base class for models
 Base = declarative_base()
 
 
-def get_db_session() -> Session:
-    """Create and return a database session"""
-    return SessionLocal()
+async def get_db_session() -> AsyncSession:
+    """Create and return an async database session"""
+    return AsyncSessionLocal()
 
 
-@contextmanager
-def get_db_context() -> Generator[Session, None, None]:
-    """Context manager for database sessions with automatic cleanup"""
-    db = SessionLocal()
-    try:
-        yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
+@asynccontextmanager
+async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
+    """Async context manager for database sessions with automatic cleanup"""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
-def create_tables():
+async def create_tables():
     """Create all tables in the database"""
     from .models import Base
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
-def drop_tables():
+async def drop_tables():
     """Drop all tables in the database"""  
     from .models import Base
-    Base.metadata.drop_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)

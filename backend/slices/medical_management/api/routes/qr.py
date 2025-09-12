@@ -13,27 +13,22 @@ import io
 import base64
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-# Database imports
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
-
-# Database connection - SECURE VERSION
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise EnvironmentError(
-        "DATABASE_URL environment variable is required. "
-        "Please set it before starting the application. "
-        "Example: export DATABASE_URL='postgresql://user:password@host:port/database'"
-    )
-# Convert asyncpg URL to psycopg2 format if needed
-if "postgresql+asyncpg://" in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+from slices.core.config import settings
 
 def get_db_connection():
     """Get database connection with security checks"""
+    # Lazy import to avoid module loading conflicts
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    
+    DATABASE_URL = settings.database_url
+    # Convert asyncpg URL to psycopg2 format if needed
+    if "postgresql+asyncpg://" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    
     return psycopg2.connect(DATABASE_URL)
 
 from ...application.commands import GeneratePatientQRCommand
@@ -134,7 +129,7 @@ async def generate_patient_qr(
         # Calculate expiry
         expires_at = None
         if request.expires_in_days:
-            expires_at = datetime.now() + timedelta(days=request.expires_in_days)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=request.expires_in_days)
         
         # Create access URL (this would be your domain in production)
         access_url = f"https://vitalgo.app/emergency/{qr_token}"
@@ -142,8 +137,45 @@ async def generate_patient_qr(
         # Generate QR image
         qr_image = create_qr_image(access_url)
         
-        # Save QR code to database (this would be handled by a command handler)
-        # For now, we'll return the response without persisting
+        # Save QR code to database  
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # First, deactivate any existing active QR codes for this patient (security measure)
+            cursor.execute("""
+                UPDATE patient_qr_codes 
+                SET is_active = false, updated_at = NOW()
+                WHERE patient_id = %s AND is_active = true
+            """, (patient["id"],))
+            
+            # Now insert the new QR code
+            qr_id = str(uuid.uuid4())
+            
+            cursor.execute("""
+                INSERT INTO patient_qr_codes 
+                (id, patient_id, qr_token, is_active, expires_at, last_accessed_at, access_count, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            """, (
+                qr_id,
+                patient["id"], 
+                qr_token,
+                True,  # is_active
+                expires_at,
+                None,  # last_accessed_at
+                0  # access_count
+            ))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+        except Exception as db_error:
+            if 'conn' in locals():
+                conn.rollback()
+                cursor.close()
+                conn.close()
+            raise HTTPException(status_code=500, detail=f"Error saving QR code: {str(db_error)}")
         
         return QRResponse(
             qr_token=qr_token,
@@ -427,6 +459,7 @@ async def get_emergency_patient_data(
 ):
     """Get patient data for emergency access via QR code - REAL DATABASE VERSION"""
     try:
+        from psycopg2.extras import RealDictCursor
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
@@ -446,35 +479,101 @@ async def get_emergency_patient_data(
         qr_data = cursor.fetchone()
         
         if not qr_data:
-            raise HTTPException(status_code=404, detail="QR code not found or inactive")
+            raise HTTPException(
+                status_code=404, 
+                detail={
+                    "error": "QR code not found",
+                    "message": "The QR code you're trying to access doesn't exist, has expired, or has been deactivated.",
+                    "qr_token": qr_token,
+                    "help": "Please verify the QR code is correct or contact the patient to generate a new one."
+                }
+            )
             
         # Check if QR has expired
-        if qr_data["expires_at"] and qr_data["expires_at"] < datetime.now():
-            raise HTTPException(status_code=404, detail="QR code has expired")
+        if qr_data["expires_at"] and qr_data["expires_at"] < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=410, 
+                detail={
+                    "error": "QR code expired",
+                    "message": f"This QR code expired on {qr_data['expires_at'].strftime('%Y-%m-%d %H:%M:%S')}.",
+                    "qr_token": qr_token,
+                    "expired_at": qr_data["expires_at"].isoformat(),
+                    "help": "Please ask the patient to generate a new QR code."
+                }
+            )
         
         # Verify user has permission to access this QR code
         patient_user_id = qr_data["user_id"]
         patient_id = qr_data["patient_id"]
         
+        # Only specific roles can access medical emergency data
+        allowed_roles = ["paramedic", "admin", "patient"]
+        if current_user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=403, 
+                detail={
+                    "error": "Access forbidden",
+                    "message": f"Role '{current_user['role']}' is not authorized to access emergency medical data.",
+                    "allowed_roles": allowed_roles,
+                    "your_role": current_user["role"]
+                }
+            )
+        
         if current_user["role"] == "paramedic":
-            # Paramedics can access any QR
-            pass
+            # Verify paramedic is approved and active
+            conn_verify = get_db_connection()
+            cursor_verify = conn_verify.cursor()
+            cursor_verify.execute("""
+                SELECT p.verification_status, p.is_active, u.status
+                FROM paramedics p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.user_id = %s
+            """, (current_user["sub"],))
+            paramedic_status = cursor_verify.fetchone()
+            cursor_verify.close()
+            conn_verify.close()
+            
+            if not paramedic_status or paramedic_status[0] != 'approved' or not paramedic_status[1] or paramedic_status[2] != 'active':
+                raise HTTPException(
+                    status_code=403, 
+                    detail={
+                        "error": "Paramedic access denied",
+                        "message": "Your paramedic account is not approved or is inactive.",
+                        "status": paramedic_status[0] if paramedic_status else "not_found",
+                        "help": "Contact administration to activate your account."
+                    }
+                )
         elif current_user["role"] == "admin":
-            # Admins can access any QR  
-            pass
+            # Verify admin is active
+            conn_verify = get_db_connection()
+            cursor_verify = conn_verify.cursor()
+            cursor_verify.execute("""
+                SELECT status FROM users WHERE id = %s
+            """, (current_user["sub"],))
+            admin_status = cursor_verify.fetchone()
+            cursor_verify.close()
+            conn_verify.close()
+            
+            if not admin_status or admin_status[0] != 'active':
+                raise HTTPException(status_code=403, detail="Admin account is not active")
         elif current_user["role"] == "patient":
             # Patients can only access their own QR
             if current_user["sub"] != patient_user_id:
-                raise HTTPException(status_code=403, detail="Access denied: You can only access your own QR code")
-        else:
-            raise HTTPException(status_code=403, detail="Insufficient permissions to access medical data")
+                raise HTTPException(
+                    status_code=403, 
+                    detail={
+                        "error": "Patient access denied",
+                        "message": "You can only access your own medical QR code.",
+                        "your_user_id": current_user["sub"],
+                        "qr_owner_id": patient_user_id
+                    }
+                )
         
         # Get patient's allergies
         cursor.execute("""
             SELECT allergen, severity, symptoms, treatment, diagnosed_date, notes
             FROM allergies 
-            WHERE patient_id = %s AND is_active = true AND deleted_at IS NULL
-            ORDER BY severity DESC, diagnosed_date DESC
+            WHERE patient_id = %s AND is_active = true            ORDER BY severity DESC, diagnosed_date DESC
         """, (patient_id,))
         allergies = cursor.fetchall()
         
@@ -483,8 +582,7 @@ async def get_emergency_patient_data(
             SELECT name as illness_name, cie10_code, diagnosed_date, status, 
                    symptoms, treatment, prescribed_by, notes, is_chronic
             FROM illnesses 
-            WHERE patient_id = %s AND is_active = true AND deleted_at IS NULL
-            ORDER BY diagnosed_date DESC
+            WHERE patient_id = %s AND is_active = true            ORDER BY diagnosed_date DESC
         """, (patient_id,))
         illnesses = cursor.fetchall()
         
@@ -493,8 +591,7 @@ async def get_emergency_patient_data(
             SELECT name as surgery_name, surgery_date, surgeon, hospital, 
                    description, diagnosis, anesthesia_type, surgery_duration_minutes, notes
             FROM surgeries 
-            WHERE patient_id = %s AND is_active = true AND deleted_at IS NULL
-            ORDER BY surgery_date DESC
+            WHERE patient_id = %s AND is_active = true            ORDER BY surgery_date DESC
         """, (patient_id,))
         surgeries = cursor.fetchall()
         
@@ -515,7 +612,7 @@ async def get_emergency_patient_data(
             SELECT %s, pqr.id, %s, %s, %s, true, NOW()
             FROM patient_qr_codes pqr 
             WHERE pqr.qr_token = %s
-        """, (access_log_id, current_user["sub"], current_user["role"], "unknown", qr_token))
+        """, (access_log_id, current_user["sub"], current_user["role"], None, qr_token))
         
         conn.commit()
         cursor.close()
@@ -570,7 +667,7 @@ async def get_emergency_patient_data(
                 "accessed_by": current_user["sub"],
                 "accessed_by_role": current_user["role"],
                 "accessed_at": datetime.now().isoformat(),
-                "ip_address": "unknown"  # In production, get from request
+                "ip_address": None  # In production, get from request
             }
         }
         
@@ -737,6 +834,116 @@ async def get_paramedic_scan_history(
             cursor.close()
             conn.close()
         raise HTTPException(status_code=500, detail=f"Error loading scan history: {str(e)}")
+
+
+@router.get("/emergency/{qr_token}/public")
+async def get_public_emergency_data(qr_token: str):
+    """Get basic emergency patient data without authentication - for critical situations"""
+    try:
+        from psycopg2.extras import RealDictCursor
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify QR token exists and get basic patient info
+        cursor.execute("""
+            SELECT p.id as patient_id, p.blood_type, p.emergency_contact_name, 
+                   p.emergency_contact_phone, p.eps,
+                   u.first_name, u.last_name,
+                   pqr.is_active, pqr.expires_at
+            FROM patient_qr_codes pqr
+            JOIN patients p ON pqr.patient_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE pqr.qr_token = %s AND pqr.is_active = true
+        """, (qr_token,))
+        
+        qr_data = cursor.fetchone()
+        
+        if not qr_data:
+            raise HTTPException(
+                status_code=404, 
+                detail={
+                    "error": "QR code not found",
+                    "message": "The QR code you're trying to access doesn't exist, has expired, or has been deactivated.",
+                    "qr_token": qr_token,
+                    "help": "Please verify the QR code is correct or contact the patient to generate a new one."
+                }
+            )
+            
+        # Check if QR has expired
+        if qr_data["expires_at"] and qr_data["expires_at"] < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=410, 
+                detail={
+                    "error": "QR code expired",
+                    "message": f"This QR code expired on {qr_data['expires_at'].strftime('%Y-%m-%d %H:%M:%S')}.",
+                    "qr_token": qr_token,
+                    "expired_at": qr_data["expires_at"].isoformat(),
+                    "help": "Please ask the patient to generate a new QR code."
+                }
+            )
+        
+        # Get only critical allergies (high severity) for public access
+        cursor.execute("""
+            SELECT allergen, severity, symptoms
+            FROM allergies 
+            WHERE patient_id = %s AND is_active = true            AND severity IN ('high', 'critical')
+            ORDER BY severity DESC
+            LIMIT 5
+        """, (qr_data["patient_id"],))
+        critical_allergies = cursor.fetchall()
+        
+        # Get only active chronic conditions for public access
+        cursor.execute("""
+            SELECT name as illness_name, status
+            FROM illnesses 
+            WHERE patient_id = %s            AND (is_chronic = true OR status = 'ACTIVA')
+            ORDER BY diagnosed_date DESC
+            LIMIT 5
+        """, (qr_data["patient_id"],))
+        chronic_conditions = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # Return only essential emergency information
+        emergency_data = {
+            "patient": {
+                "name": f"{qr_data['first_name']} {qr_data['last_name']}",
+                "blood_type": qr_data["blood_type"],
+                "emergency_contact_name": qr_data["emergency_contact_name"],
+                "emergency_contact_phone": qr_data["emergency_contact_phone"],
+                "eps": qr_data["eps"]
+            },
+            "critical_allergies": [
+                {
+                    "allergen": allergy["allergen"],
+                    "severity": allergy["severity"],
+                    "symptoms": allergy["symptoms"]
+                } for allergy in critical_allergies
+            ],
+            "chronic_conditions": [
+                {
+                    "name": condition["illness_name"],
+                    "status": condition["status"]
+                } for condition in chronic_conditions
+            ],
+            "access_info": {
+                "qr_token": qr_token,
+                "accessed_at": datetime.now().isoformat(),
+                "access_type": "public_emergency",
+                "note": "Limited information for emergency use. Full medical history requires authentication."
+            }
+        }
+        
+        return JSONResponse(content=emergency_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if 'conn' in locals():
+            cursor.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error loading emergency data: {str(e)}")
 
 
 @router.post("/emergency/{qr_token}/access", response_model=EmergencyAccessResponse)
