@@ -15,11 +15,13 @@ import {
   AlertTriangle
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const severidadOptions = [
-  { value: "LEVE", label: "Leve" },
-  { value: "MODERADA", label: "Moderada" }, 
-  { value: "SEVERA", label: "Severa" },
-  { value: "CRITICA", label: "Crítica" }
+  { value: "low", label: "Leve" },
+  { value: "medium", label: "Moderada" }, 
+  { value: "high", label: "Severa" },
+  { value: "critical", label: "Crítica" }
 ]
 
 interface Allergy {
@@ -54,11 +56,11 @@ export function AllergySection({ alergias, onUpdate }: AllergySectionProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const getSeverityColor = (severity: string) => {
-    switch (severity?.toUpperCase()) {
-      case "LEVE": return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "MODERADA": return "bg-orange-100 text-orange-800 border-orange-200" 
-      case "SEVERA": return "bg-red-100 text-red-800 border-red-200"
-      case "CRITICA": return "bg-red-200 text-red-900 border-red-300"
+    switch (severity?.toLowerCase()) {
+      case "low": return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "medium": return "bg-orange-100 text-orange-800 border-orange-200" 
+      case "high": return "bg-red-100 text-red-800 border-red-200"
+      case "critical": return "bg-red-200 text-red-900 border-red-300"
       default: return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
@@ -146,8 +148,8 @@ export function AllergySection({ alergias, onUpdate }: AllergySectionProps) {
       }
 
       const url = editingAlergia 
-        ? `http://localhost:8000/api/v1/patients/me/allergies/${editingAlergia.id}`
-        : 'http://localhost:8000/api/v1/patients/me/allergies'
+        ? `${API_BASE_URL}/patients/me/allergies/${editingAlergia.id}`
+        : `${API_BASE_URL}/patients/me/allergies`
       
       const method = editingAlergia ? 'PUT' : 'POST'
 
@@ -189,7 +191,7 @@ export function AllergySection({ alergias, onUpdate }: AllergySectionProps) {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/allergies/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/allergies/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

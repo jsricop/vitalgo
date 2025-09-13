@@ -10,6 +10,8 @@ import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
 import { User, Save, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const tiposDocumento = [
   { value: "CC", label: "Cédula de Ciudadanía" },
   { value: "CE", label: "Cédula de Extranjería" },
@@ -69,7 +71,7 @@ export default function ProfileEditPage() {
           return
         }
 
-        const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -85,7 +87,7 @@ export default function ProfileEditPage() {
 
         // Try to get patient data
         try {
-          const patientResponse = await fetch(`http://localhost:8000/api/v1/patients/${userData.id}`, {
+          const patientResponse = await fetch(`${API_BASE_URL}/patients/${userData.id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -231,7 +233,7 @@ export default function ProfileEditPage() {
       const token = localStorage.getItem('access_token')
 
       // Update user basic info
-      const userUpdateResponse = await fetch(`http://localhost:8000/api/v1/users/${user.id}`, {
+      const userUpdateResponse = await fetch(`${API_BASE_URL}/users/${user.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -251,7 +253,7 @@ export default function ProfileEditPage() {
 
       // Update patient specific data if available
       if (formData.document_type || formData.document_number || formData.birth_date || formData.blood_type || formData.eps) {
-        const patientUpdateResponse = await fetch(`http://localhost:8000/api/v1/patients/${user.id}`, {
+        const patientUpdateResponse = await fetch(`${API_BASE_URL}/patients/${user.id}`, {
           method: "PUT",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -312,7 +314,7 @@ export default function ProfileEditPage() {
     try {
       const token = localStorage.getItem('access_token')
 
-      const response = await fetch(`http://localhost:8000/api/v1/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

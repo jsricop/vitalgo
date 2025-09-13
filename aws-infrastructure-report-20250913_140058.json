@@ -1,0 +1,13 @@
+{
+  "vitalgo_infrastructure": {
+    "discovery_date": "Sat Sep 13 14:00:58 -05 2025",
+    "ec2_instances": [],
+    "rds_instances": [],
+    "s3_buckets": [],
+    "cloudformation_stacks": [],
+    "security_groups": [],
+    "key_pairs": [],
+    "load_balancers": [],
+    "route53_zones": []
+  }
+}

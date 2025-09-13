@@ -99,16 +99,16 @@ slices/
 ### Frontend: Vertical Slicing + Atomic Design
 ```
 src/
-├── features/                  # Vertical slices de negocio
+├── slices/                  # Vertical slices de negocio
 │   ├── authentication/       # Feature slice
-│   ├── dashboard/            # Feature slice
-│   └── user-management/      # Feature slice
-├── shared/                   # Componentes compartidos
-│   ├── components/           # Atomic Design
+        ── components/           # Atomic Design
 │   │   ├── atoms/           # Elementos básicos
 │   │   ├── molecules/       # Combinaciones
 │   │   ├── organisms/       # Secciones complejas
 │   │   └── templates/       # Layouts de página
+│   ├── dashboard/            # Feature slice
+│   └── user-management/      # Feature slice
+├── shared/                   # Componentes compartidos
 │   ├── hooks/               # Custom hooks
 │   ├── services/            # Servicios API
 │   └── store/               # Estado global

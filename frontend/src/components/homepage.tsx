@@ -14,7 +14,6 @@ import {
   Activity,
   HeartHandshake,
   Stethoscope,
-  Brain,
   Globe,
   Star,
   CheckCircle

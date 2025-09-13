@@ -14,16 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-from ...application.commands import (
-    AddAllergyCommand, UpdateAllergyCommand,
-    AddIllnessCommand, UpdateIllnessCommand, UpdateIllnessStatusCommand,
-    AddSurgeryCommand, UpdateSurgeryCommand, AddSurgeryComplicationCommand
-)
-from ...application.queries import (
-    GetPatientByUserIdQuery, GetPatientMedicalSummaryQuery,
-    GetPatientAllergiesQuery, GetPatientIllnessesQuery, GetPatientSurgeriesQuery
-)
-from ...application.handlers.patient_handlers import PatientCommandHandlers, PatientQueryHandlers
+# Note: Using simplified handlers instead of the full command/query pattern for development
 from slices.core.config import settings
 
 # Import auth verification from auth routes
@@ -243,12 +234,12 @@ class SimpleMedicalHandlers:
                 
                 cursor.execute("""
                     INSERT INTO illnesses (id, patient_id, name, cie10_code, status, diagnosed_date, 
-                                         resolved_date, symptoms, treatment, prescribed_by, notes, 
+                                         symptoms, treatment, prescribed_by, notes, 
                                          is_chronic, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     RETURNING id, name, status, diagnosed_date
                 """, (illness_id, command.patient_id, command.name, command.cie10_code,
-                      'ACTIVA', command.diagnosed_date, None, command.symptoms, command.treatment,
+                      'ACTIVA', command.diagnosed_date, command.symptoms, command.treatment,
                       command.prescribed_by, command.notes, command.is_chronic))
                 
                 illness = cursor.fetchone()
@@ -272,15 +263,13 @@ class SimpleMedicalHandlers:
                 
                 cursor.execute("""
                     INSERT INTO surgeries (id, patient_id, name, surgery_date, surgeon, hospital, 
-                                         description, diagnosis, complications, recovery_notes, 
-                                         anesthesia_type, surgery_duration_minutes, follow_up_required, 
-                                         follow_up_date, notes, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                                         description, diagnosis, anesthesia_type, surgery_duration_minutes, 
+                                         notes, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     RETURNING id, name, surgery_date, surgeon, hospital
                 """, (surgery_id, command.patient_id, command.name, command.surgery_date,
                       command.surgeon, command.hospital, command.description, command.diagnosis,
-                      None, None, command.anesthesia_type, command.surgery_duration_minutes,
-                      False, None, command.notes))
+                      command.anesthesia_type, command.surgery_duration_minutes, command.notes))
                 
                 surgery = cursor.fetchone()
                 conn.commit()
@@ -292,6 +281,60 @@ class SimpleMedicalHandlers:
             # Log error securely without exposing sensitive data
             print(f"Database error in handle_add_surgery: Surgery creation failed")
             raise ValueError("Error creating surgery")
+        finally:
+            conn.close()
+
+    async def handle_get_patient_medical_summary(self, query):
+        """Get complete medical summary for a patient"""
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Get patient basic info
+                cursor.execute("""
+                    SELECT p.*, u.first_name, u.last_name, u.email, u.phone 
+                    FROM patients p
+                    JOIN users u ON p.user_id = u.id
+                    WHERE p.id = %s
+                """, (query.patient_id,))
+                
+                patient_data = cursor.fetchone()
+                if not patient_data:
+                    raise ValueError("Patient not found")
+                
+                # Get allergies
+                cursor.execute("""
+                    SELECT * FROM allergies 
+                    WHERE patient_id = %s AND is_active = true AND deleted_at IS NULL
+                    ORDER BY created_at DESC
+                """, (query.patient_id,))
+                allergies = [dict(row) for row in cursor.fetchall()]
+                
+                # Get illnesses
+                cursor.execute("""
+                    SELECT * FROM illnesses 
+                    WHERE patient_id = %s AND deleted_at IS NULL
+                    ORDER BY created_at DESC
+                """, (query.patient_id,))
+                illnesses = [dict(row) for row in cursor.fetchall()]
+                
+                # Get surgeries
+                cursor.execute("""
+                    SELECT * FROM surgeries 
+                    WHERE patient_id = %s AND deleted_at IS NULL
+                    ORDER BY surgery_date DESC
+                """, (query.patient_id,))
+                surgeries = [dict(row) for row in cursor.fetchall()]
+                
+                return {
+                    "patient": dict(patient_data),
+                    "allergies": allergies,
+                    "illnesses": illnesses,
+                    "surgeries": surgeries
+                }
+                
+        except Exception as e:
+            print(f"Database error in handle_get_patient_medical_summary: {e}")
+            raise ValueError("Error retrieving medical summary")
         finally:
             conn.close()
 
@@ -589,29 +632,29 @@ class SimpleMedicalHandlers:
         conn = get_db_connection()
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                # Get current complications and append new one
-                cursor.execute("SELECT complications FROM surgeries WHERE id = %s AND patient_id = %s", 
+                # Get current notes and append complication
+                cursor.execute("SELECT notes FROM surgeries WHERE id = %s AND patient_id = %s", 
                              (command.surgery_id, command.patient_id))
                 surgery = cursor.fetchone()
                 
                 if not surgery:
                     raise ValueError("Surgery not found or unauthorized")
                 
-                current_complications = surgery['complications'] if surgery['complications'] else ""
+                current_notes = surgery['notes'] if surgery['notes'] else ""
                 new_complication = self._validate_string_input(command.complication, "complication", 500)
                 
-                # Append new complication
-                if current_complications:
-                    updated_complications = f"{current_complications}; {new_complication}"
+                # Append complication to notes
+                if current_notes:
+                    updated_notes = f"{current_notes}\nComplicación: {new_complication}"
                 else:
-                    updated_complications = new_complication
+                    updated_notes = f"Complicación: {new_complication}"
                 
                 cursor.execute("""
                     UPDATE surgeries 
-                    SET complications = %s, updated_at = NOW()
+                    SET notes = %s, updated_at = NOW()
                     WHERE id = %s AND patient_id = %s
-                    RETURNING id, name, complications
-                """, (updated_complications, command.surgery_id, command.patient_id))
+                    RETURNING id, name, notes
+                """, (updated_notes, command.surgery_id, command.patient_id))
                 
                 updated_surgery = cursor.fetchone()
                 conn.commit()
@@ -762,19 +805,19 @@ def require_patient_or_paramedic_role(current_user: dict = Depends(verify_token)
 @router.get("/me/summary")
 async def get_my_medical_summary(
     current_user: dict = Depends(require_patient_role),
-    query_handlers: PatientQueryHandlers = Depends(get_query_handlers)
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Get complete medical summary for current patient"""
     try:
         # Get patient by user ID
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
+        patient_query = SimpleQuery(user_id=current_user["sub"])
         patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
         # Get medical summary
-        summary_query = GetPatientMedicalSummaryQuery(
+        summary_query = SimpleQuery(
             patient_id=patient["id"],
             include_inactive=True
         )
@@ -833,17 +876,17 @@ async def add_allergy(
 @router.get("/me/allergies")
 async def get_my_allergies(
     current_user: dict = Depends(require_patient_role),
-    query_handlers: PatientQueryHandlers = Depends(get_query_handlers)
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Get all allergies for current patient"""
     try:
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
+        patient_query = SimpleQuery(user_id=current_user["sub"])
         patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        allergies_query = GetPatientAllergiesQuery(patient_id=patient["id"])
+        allergies_query = SimpleQuery(patient_id=patient["id"])
         allergies = await query_handlers.handle_get_patient_allergies(allergies_query)
         
         return {"allergies": allergies}
@@ -859,18 +902,19 @@ async def update_allergy(
     allergy_id: str,
     request: AllergyUpdateRequest,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Update existing allergy"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        command = UpdateAllergyCommand(
+        command = SimpleCommand(
             allergy_id=allergy_id,
             patient_id=patient["id"],
             allergen=request.allergen,
@@ -937,17 +981,17 @@ async def add_illness(
 @router.get("/me/illnesses")
 async def get_my_illnesses(
     current_user: dict = Depends(require_patient_role),
-    query_handlers: PatientQueryHandlers = Depends(get_query_handlers)
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Get all illnesses for current patient"""
     try:
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
+        patient_query = SimpleQuery(user_id=current_user["sub"])
         patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        illnesses_query = GetPatientIllnessesQuery(patient_id=patient["id"])
+        illnesses_query = SimpleQuery(patient_id=patient["id"])
         illnesses = await query_handlers.handle_get_patient_illnesses(illnesses_query)
         
         return {"illnesses": illnesses}
@@ -963,18 +1007,19 @@ async def update_illness(
     illness_id: str,
     request: IllnessUpdateRequest,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Update existing illness"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        command = UpdateIllnessCommand(
+        command = SimpleCommand(
             illness_id=illness_id,
             patient_id=patient["id"],
             name=request.name,
@@ -1002,18 +1047,19 @@ async def update_illness_status(
     illness_id: str,
     request: IllnessStatusUpdateRequest,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Update illness status"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        command = UpdateIllnessStatusCommand(
+        command = SimpleCommand(
             illness_id=illness_id,
             patient_id=patient["id"],
             status=request.status
@@ -1077,17 +1123,17 @@ async def add_surgery(
 @router.get("/me/surgeries")
 async def get_my_surgeries(
     current_user: dict = Depends(require_patient_role),
-    query_handlers: PatientQueryHandlers = Depends(get_query_handlers)
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Get all surgeries for current patient"""
     try:
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
+        patient_query = SimpleQuery(user_id=current_user["sub"])
         patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        surgeries_query = GetPatientSurgeriesQuery(patient_id=patient["id"])
+        surgeries_query = SimpleQuery(patient_id=patient["id"])
         surgeries = await query_handlers.handle_get_patient_surgeries(surgeries_query)
         
         return {"surgeries": surgeries}
@@ -1103,18 +1149,19 @@ async def update_surgery(
     surgery_id: str,
     request: SurgeryUpdateRequest,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Update existing surgery"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        command = UpdateSurgeryCommand(
+        command = SimpleCommand(
             surgery_id=surgery_id,
             patient_id=patient["id"],
             name=request.name,
@@ -1144,18 +1191,19 @@ async def add_surgery_complication(
     surgery_id: str,
     request: ComplicationRequest,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Add complication to surgery"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
         
-        command = AddSurgeryComplicationCommand(
+        command = SimpleCommand(
             surgery_id=surgery_id,
             patient_id=patient["id"],
             complication=request.complication
@@ -1178,13 +1226,14 @@ async def add_surgery_complication(
 async def delete_allergy(
     allergy_id: str,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Delete an allergy (soft delete)"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
@@ -1205,13 +1254,14 @@ async def delete_allergy(
 async def delete_illness(
     illness_id: str,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Delete an illness (soft delete)"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
@@ -1232,13 +1282,14 @@ async def delete_illness(
 async def delete_surgery(
     surgery_id: str,
     current_user: dict = Depends(require_patient_role),
-    command_handlers: PatientCommandHandlers = Depends(get_command_handlers)
+    command_handlers: SimpleMedicalHandlers = Depends(get_command_handlers),
+    query_handlers: SimpleMedicalHandlers = Depends(get_query_handlers)
 ):
     """Delete a surgery (soft delete)"""
     try:
         # Get patient ID from current user
-        patient_query = GetPatientByUserIdQuery(user_id=current_user["sub"])
-        patient = await command_handlers.handle_get_patient_by_user_id(patient_query)
+        patient_query = SimpleQuery(user_id=current_user["sub"])
+        patient = await query_handlers.handle_get_patient_by_user_id(patient_query)
         
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")

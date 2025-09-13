@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Menu, X, Heart, User, LogOut, Settings, QrCode } from "lucide-react"
+import { Menu, X, User, LogOut, Settings } from "lucide-react"
 
 interface HeaderProps {
   isAuthenticated?: boolean
@@ -18,8 +18,51 @@ interface HeaderProps {
 export function Header({ isAuthenticated = false, user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
+
+  // Function to check if a nav link should be active
+  const isActiveLink = (basePath: string) => {
+    if (basePath === '/dashboard') {
+      return pathname === '/dashboard'
+    }
+    if (basePath === '/medical-info') {
+      return pathname.startsWith('/medical-info')
+    }
+    if (basePath === '/qr-code') {
+      return pathname.startsWith('/qr-code')
+    }
+    return pathname === basePath
+  }
+
+  // Function to get nav link classes with active state
+  const getNavLinkClasses = (basePath: string, additionalClasses: string = "") => {
+    const baseClasses = "transition-colors"
+    const isActive = isActiveLink(basePath)
+    
+    if (isActive) {
+      // Active state with VitalGo brand color
+      return `${baseClasses} text-vitalgo-green font-medium border-b-2 border-vitalgo-green pb-1 ${additionalClasses}`
+    } else {
+      // Default state
+      return `${baseClasses} text-gray-600 hover:text-vitalgo-green ${additionalClasses}`
+    }
+  }
+
+  // Function to get mobile nav link classes with active state
+  const getMobileNavLinkClasses = (basePath: string, additionalClasses: string = "") => {
+    const baseClasses = "block px-3 py-2 transition-colors"
+    const isActive = isActiveLink(basePath)
+    
+    if (isActive) {
+      // Active state with VitalGo brand color and background
+      return `${baseClasses} text-vitalgo-green font-medium bg-vitalgo-green/10 border-l-4 border-vitalgo-green ${additionalClasses}`
+    } else {
+      // Default state
+      return `${baseClasses} text-gray-600 hover:text-vitalgo-green hover:bg-vitalgo-green/5 ${additionalClasses}`
+    }
+  }
 
   const handleSignOut = () => {
     // Clear all authentication data
@@ -74,13 +117,13 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
               <>
                 {user?.role === "patient" && (
                   <>
-                    <Link href="/dashboard" className="text-gray-600 hover:text-vitalgo-green transition-colors">
+                    <Link href="/dashboard" className={getNavLinkClasses("/dashboard")}>
                       Dashboard
                     </Link>
-                    <Link href="/medical-info" className="text-gray-600 hover:text-vitalgo-green transition-colors">
+                    <Link href="/medical-info" className={getNavLinkClasses("/medical-info")}>
                       Información Médica
                     </Link>
-                    <Link href="/qr-code" className="text-gray-600 hover:text-vitalgo-green transition-colors">
+                    <Link href="/qr-code" className={getNavLinkClasses("/qr-code")}>
                       Mi QR
                     </Link>
                   </>
@@ -153,7 +196,8 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                     className="text-gray-600 hover:text-red-600"
                     onClick={handleSignOut}
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar Sesión
                   </Button>
                 </div>
               </div>
@@ -211,13 +255,13 @@ export function Header({ isAuthenticated = false, user }: HeaderProps) {
                 <>
                   {user?.role === "patient" && (
                     <>
-                      <Link href="/dashboard" className="block px-3 py-2 text-gray-600 hover:text-vitalgo-green">
+                      <Link href="/dashboard" className={getMobileNavLinkClasses("/dashboard")}>
                         Dashboard
                       </Link>
-                      <Link href="/medical-info" className="block px-3 py-2 text-gray-600 hover:text-vitalgo-green">
+                      <Link href="/medical-info" className={getMobileNavLinkClasses("/medical-info")}>
                         Información Médica
                       </Link>
-                      <Link href="/qr-code" className="block px-3 py-2 text-gray-600 hover:text-vitalgo-green">
+                      <Link href="/qr-code" className={getMobileNavLinkClasses("/qr-code")}>
                         Mi QR
                       </Link>
                     </>

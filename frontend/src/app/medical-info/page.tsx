@@ -11,6 +11,8 @@ import { MainLayout } from "@/shared/components/templates/main-layout"
 import { Heart, Plus, FileText, Stethoscope, Scissors, AlertTriangle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 interface MedicalData {
   allergies: Array<{
     id: string
@@ -71,7 +73,7 @@ export default function MedicalInfoPage() {
   const fetchMedicalData = async (token: string, userId: string) => {
     try {
       // Fetch allergies
-      const allergiesResponse = await fetch('http://localhost:8000/api/v1/patients/me/allergies', {
+      const allergiesResponse = await fetch(`${API_BASE_URL}/patients/me/allergies`, {
         headers: { 
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -79,7 +81,7 @@ export default function MedicalInfoPage() {
       })
       
       // Fetch illnesses  
-      const illnessesResponse = await fetch('http://localhost:8000/api/v1/patients/me/illnesses', {
+      const illnessesResponse = await fetch(`${API_BASE_URL}/patients/me/illnesses`, {
         headers: { 
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -87,7 +89,7 @@ export default function MedicalInfoPage() {
       })
 
       // Fetch surgeries
-      const surgeriesResponse = await fetch('http://localhost:8000/api/v1/patients/me/surgeries', {
+      const surgeriesResponse = await fetch(`${API_BASE_URL}/patients/me/surgeries`, {
         headers: { 
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"

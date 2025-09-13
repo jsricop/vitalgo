@@ -27,6 +27,8 @@ import {
   Home
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 interface PatientData {
   id: string
   first_name: string
@@ -92,7 +94,7 @@ export default function EmergencyPage() {
 
     try {
       // Verify token is still valid and get current user info
-      const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -144,7 +146,7 @@ export default function EmergencyPage() {
     try {
       // This would be an endpoint to verify QR ownership
       // For now, we'll implement a basic check but this should be secured on backend
-      const response = await fetch(`http://localhost:8000/api/v1/qr/verify-ownership/${qrCode}`, {
+      const response = await fetch(`${API_BASE_URL}/qr/verify-ownership/${qrCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -174,6 +176,67 @@ export default function EmergencyPage() {
     </div>
   )
 
+  const loadPublicEmergencyData = async () => {
+    try {
+      // Get basic emergency information without authentication
+      const response = await fetch(`${API_BASE_URL}/qr/emergency/${qrCode}/public`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.detail?.message || errorData.detail || "Código QR no encontrado o inválido"
+          throw new Error(errorMessage)
+        }
+        if (response.status === 410) {
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.detail?.message || "Código QR expirado"
+          throw new Error(errorMessage)
+        }
+        throw new Error("Error al cargar información de emergencia")
+      }
+
+      const data = await response.json()
+      
+      // Transform the public data to match the expected format
+      const transformedData: PatientData = {
+        id: data.qr_token,
+        first_name: data.patient.name.split(' ')[0] || '',
+        last_name: data.patient.name.split(' ').slice(1).join(' ') || '',
+        document_type: 'N/A',
+        document_number: 'Restringido',
+        phone: 'Restringido',
+        birth_date: new Date().toISOString(), // We don't have birth date in public data
+        gender: 'N/A',
+        blood_type: data.patient.blood_type,
+        eps: data.patient.eps,
+        emergency_contact_name: data.patient.emergency_contact_name,
+        emergency_contact_phone: data.patient.emergency_contact_phone,
+        allergies: data.critical_allergies?.map((allergy: any) => ({
+          allergen: allergy.allergen,
+          severity: allergy.severity,
+          symptoms: allergy.symptoms,
+          treatment: '',
+          diagnosed_date: '',
+          notes: ''
+        })) || [],
+        illnesses: data.chronic_conditions?.map((condition: any) => ({
+          illness_name: condition.name,
+          cie10_code: '',
+          diagnosis_date: '',
+          status: condition.status,
+          notes: ''
+        })) || [],
+        surgeries: [] // Not included in public access
+      }
+      
+      setPatientData(transformedData)
+      
+    } catch (error: any) {
+      console.error('Error loading public emergency data:', error)
+      throw error // Re-throw to be handled by the caller
+    }
+  }
+
   const loadPatientData = async () => {
     setIsLoading(true)
     setError("")
@@ -183,16 +246,24 @@ export default function EmergencyPage() {
         throw new Error("Código QR inválido")
       }
 
+      // Always try public access first for emergency situations
+      // This ensures paramedics can access critical info immediately
+      try {
+        await loadPublicEmergencyData()
+        return
+      } catch (publicError) {
+        console.log('Public access failed, trying authenticated access...', publicError)
+        // If public access fails, try authenticated access
+      }
+
       const token = localStorage.getItem('access_token')
       
       if (!token) {
-        // If no token, only show basic emergency info (no sensitive data)
-        setError("Se requiere autenticación para ver la información médica completa")
-        return
+        throw new Error("No se pudo acceder a la información de emergencia")
       }
 
-      // Get patient data from QR code with authentication
-      const response = await fetch(`http://localhost:8000/api/v1/qr/emergency/${qrCode}`, {
+      // Get complete patient data from QR code with authentication
+      const response = await fetch(`${API_BASE_URL}/qr/emergency/${qrCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -201,17 +272,29 @@ export default function EmergencyPage() {
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Token is invalid or expired
+          // Token is invalid or expired, try to fall back to public access
           localStorage.removeItem('access_token')
           localStorage.removeItem('user_data') 
           localStorage.removeItem('user_role')
-          throw new Error("Sesión expirada. Por favor, inicie sesión nuevamente")
+          setIsAuthenticated(false)
+          await loadPublicEmergencyData()
+          return
         }
         if (response.status === 403) {
-          throw new Error("No tiene permisos para acceder a esta información médica")
+          // User doesn't have permissions, fall back to public access
+          setIsAuthenticated(false)
+          await loadPublicEmergencyData()
+          return
         }
         if (response.status === 404) {
-          throw new Error("Código QR no encontrado o inválido")
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.detail?.message || errorData.detail || "Código QR no encontrado o inválido"
+          throw new Error(errorMessage)
+        }
+        if (response.status === 410) {
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.detail?.message || "Código QR expirado"
+          throw new Error(errorMessage)
         }
         throw new Error("Error al cargar información del paciente")
       }
@@ -237,7 +320,7 @@ export default function EmergencyPage() {
         return
       }
 
-      const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

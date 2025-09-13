@@ -11,6 +11,8 @@ import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
 import { User, CheckCircle, XCircle, Clock, MessageSquare } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 interface PendingParamedic {
   id: string
   email: string
@@ -51,7 +53,7 @@ export default function AdminDashboard() {
 
   const fetchPendingParamedics = async (token: string) => {
     try {
-      const response = await fetch("http://localhost:8000/api/v1/admin/pending-paramedics", {
+      const response = await fetch(`${API_BASE_URL}/admin/pending-paramedics`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -78,7 +80,7 @@ export default function AdminDashboard() {
     setProcessingIds(prev => new Set(prev).add(paramedicId))
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/admin/approve-paramedic/${paramedicId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/approve-paramedic/${paramedicId}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -115,7 +117,7 @@ export default function AdminDashboard() {
     setProcessingIds(prev => new Set(prev).add(paramedicId))
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/admin/reject-paramedic/${paramedicId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/reject-paramedic/${paramedicId}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

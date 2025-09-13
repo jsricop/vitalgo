@@ -11,6 +11,8 @@ import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
 import { Heart, ArrowRight, Eye, EyeOff, Shield, CheckCircle, X } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const tiposDocumento = [
   { value: "CC", label: "Cédula de Ciudadanía" },
   { value: "CE", label: "Cédula de Extranjería" },
@@ -128,7 +130,7 @@ export default function SignupParamedicoPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/auth/register/paramedic", {
+      const response = await fetch(`${API_BASE_URL}/auth/register/paramedic`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

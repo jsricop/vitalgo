@@ -15,6 +15,8 @@ import {
   Scissors
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 interface Surgery {
   id: string
   name: string
@@ -145,8 +147,8 @@ export function SurgerySection({ cirugias, onUpdate }: SurgerySectionProps) {
       }
 
       const url = editingSurgery 
-        ? `http://localhost:8000/api/v1/patients/me/surgeries/${editingSurgery.id}`
-        : 'http://localhost:8000/api/v1/patients/me/surgeries'
+        ? `${API_BASE_URL}/patients/me/surgeries/${editingSurgery.id}`
+        : `${API_BASE_URL}/patients/me/surgeries`
       
       const method = editingSurgery ? 'PUT' : 'POST'
 
@@ -191,7 +193,7 @@ export function SurgerySection({ cirugias, onUpdate }: SurgerySectionProps) {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/surgeries/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -106,7 +106,7 @@ class EPSResponse(BaseModel):
     name: str
     code: str
     regime_type: str
-    status: str
+    status: bool
 
 
 # JWT configuration - using pydantic settings
@@ -150,7 +150,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-# Simple database operations (inline for now)
+# Simple database operations (inline for now)  
 import hashlib
 import uuid
 import psycopg2
@@ -337,7 +337,7 @@ async def register_patient(
         
         cursor.execute("""
             SELECT COUNT(*) as count FROM eps 
-            WHERE name = %s AND status = 'activa'
+            WHERE name = %s AND is_active = true
         """, (request.eps,))
         
         result = cursor.fetchone()
@@ -718,7 +718,7 @@ async def change_password(
 @router.get("/eps", response_model=list[EPSResponse])
 async def get_eps_list(
     regime_type: Optional[str] = None,
-    status: str = "activa"
+    status: bool = True
 ):
     """Get list of EPS (Entidades Promotoras de Salud) available in Colombia"""
     try:
@@ -726,7 +726,7 @@ async def get_eps_list(
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Base query
-        query = "SELECT id, name, code, regime_type, status FROM eps WHERE status = %s"
+        query = "SELECT id, name, code, regime_type, is_active AS status FROM eps WHERE is_active = %s"
         params = [status]
         
         # Add regime_type filter if provided
@@ -786,34 +786,3 @@ async def check_email_exists(email: str):
             conn.close()
         raise HTTPException(status_code=500, detail=f"Error checking email: {str(e)}")
 
-
-@router.get("/check-document")
-async def check_document_exists(document_type: str, document_number: str):
-    """Check if document already exists in the system"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        cursor.execute("""
-            SELECT p.id, p.document_type, p.document_number, u.email, u.status
-            FROM patients p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.document_type = %s AND p.document_number = %s
-        """, (document_type, document_number))
-        
-        patient = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        return {
-            "exists": patient is not None,
-            "document_type": document_type,
-            "document_number": document_number,
-            "is_active": patient["status"] == "active" if patient else None
-        }
-        
-    except Exception as e:
-        if 'conn' in locals():
-            cursor.close()
-            conn.close()
-        raise HTTPException(status_code=500, detail=f"Error checking document: {str(e)}")

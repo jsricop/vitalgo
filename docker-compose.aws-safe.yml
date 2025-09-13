@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database - AWS PRODUCTION SAFE
+  # CRITICAL: NO INIT SCRIPTS MOUNTED TO PREVENT DATA LOSS
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-backend_db}
+      POSTGRES_USER: ${DATABASE_USER:-backend_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-backend_pass}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      # ONLY persistent data volume - NO init scripts
+      - postgres_data:/var/lib/postgresql/data
+      # REMOVED: - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - vitalgo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-backend_user} -d ${DATABASE_NAME:-backend_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache - Safe (stateless)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - vitalgo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API - Safe (stateless)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER:-backend_user}:${DATABASE_PASSWORD:-backend_pass}@postgres:5432/${DATABASE_NAME:-backend_db}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://vitalgo.app,https://www.vitalgo.app}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-vitalgo.app,www.vitalgo.app,api.vitalgo.app}
+      # AWS SAFE MODE: Disable database auto-migrations
+      DISABLE_AUTO_MIGRATION: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vitalgo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (Next.js) - Safe (stateless)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.vitalgo.app}
+        NODE_ENV: production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.vitalgo.app}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - vitalgo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+    # CRITICAL: This volume contains production data
+    # NEVER delete this volume in AWS
+
+networks:
+  vitalgo-network:
+    driver: bridge

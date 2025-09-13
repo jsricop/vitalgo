@@ -21,6 +21,8 @@ import {
   Calendar
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const estadoOptions = [
   { value: "ACTIVA", label: "Activa" },
   { value: "CONTROLADA", label: "Controlada" },
@@ -73,7 +75,7 @@ export default function EnfermedadesPage() {
       setUser(parsedUser)
 
       // Load illnesses
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/illnesses`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -141,7 +143,7 @@ export default function EnfermedadesPage() {
 
       if (editingEnfermedad) {
         // Actualizar enfermedad existente
-        const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses/${editingEnfermedad.id}`, {
+        const response = await fetch(`${API_BASE_URL}/patients/me/illnesses/${editingEnfermedad.id}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -160,7 +162,7 @@ export default function EnfermedadesPage() {
         ))
       } else {
         // Crear nueva enfermedad
-        const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses`, {
+        const response = await fetch(`${API_BASE_URL}/patients/me/illnesses`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -220,7 +222,7 @@ export default function EnfermedadesPage() {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/illnesses/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -300,7 +302,7 @@ export default function EnfermedadesPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-4 mb-4">
-              <Link href="/dashboard">
+              <Link href="/medical-info">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Volver

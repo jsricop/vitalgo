@@ -1,0 +1,85 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e5]:
+        - link "VitalGo Logo" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - img "VitalGo Logo" [ref=e7] [cursor=pointer]
+        - navigation [ref=e8]:
+          - link "Funcionalidades" [ref=e9] [cursor=pointer]:
+            - /url: /features
+          - link "Precios" [ref=e10] [cursor=pointer]:
+            - /url: /pricing
+          - link "Acerca de" [ref=e11] [cursor=pointer]:
+            - /url: /about
+          - link "Contacto" [ref=e12] [cursor=pointer]:
+            - /url: /contact
+        - generic [ref=e13]:
+          - link "Iniciar Sesión" [ref=e14] [cursor=pointer]:
+            - /url: /login
+            - button "Iniciar Sesión" [ref=e15]
+          - generic [ref=e16]:
+            - link "Paciente" [ref=e17] [cursor=pointer]:
+              - /url: /signup/paciente
+              - button "Paciente" [ref=e18]
+            - link "Paramédico" [ref=e19] [cursor=pointer]:
+              - /url: /signup/paramedico
+              - button "Paramédico" [ref=e20]
+    - main [ref=e21]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - link "VitalGo Logo" [ref=e29] [cursor=pointer]:
+            - /url: /
+            - img "VitalGo Logo" [ref=e30] [cursor=pointer]
+          - heading "Bienvenido de vuelta" [level=1] [ref=e31]
+          - paragraph [ref=e32]: Accede a tu información médica de forma segura
+        - generic [ref=e33]:
+          - heading "Iniciar Sesión" [level=3] [ref=e35]
+          - generic [ref=e36]:
+            - alert [ref=e37]:
+              - img [ref=e38]
+              - generic [ref=e42]: Email o contraseña incorrectos. Inténtalo de nuevo.
+            - generic [ref=e43]:
+              - generic [ref=e44]:
+                - generic [ref=e45]:
+                  - text: Email
+                  - generic [ref=e46]: "*"
+                - textbox "tu@email.com" [ref=e47]: simple.patient.1757787810134@test.com
+              - generic [ref=e48]:
+                - generic [ref=e49]:
+                  - generic [ref=e50]:
+                    - text: Contraseña
+                    - generic [ref=e51]: "*"
+                  - textbox "••••••••" [ref=e52]: SimpleTest123!
+                - button [ref=e53]:
+                  - img [ref=e54]
+              - generic [ref=e57]:
+                - generic [ref=e58]:
+                  - checkbox "Recordarme" [ref=e59]
+                  - generic [ref=e60]: Recordarme
+                - link "¿Olvidaste tu contraseña?" [ref=e61] [cursor=pointer]:
+                  - /url: /forgot-password
+              - button "Iniciar Sesión" [ref=e62]:
+                - img [ref=e63]
+                - text: Iniciar Sesión
+            - generic [ref=e66]:
+              - paragraph [ref=e67]:
+                - text: ¿No tienes una cuenta?
+                - link "Regístrate como paciente" [ref=e68] [cursor=pointer]:
+                  - /url: /signup/paciente
+              - paragraph [ref=e69]:
+                - text: ¿Eres profesional de la salud?
+                - link "Regístrate aquí" [ref=e70] [cursor=pointer]:
+                  - /url: /signup/paramedico
+        - generic [ref=e71]:
+          - paragraph [ref=e72]: ¿Acceso de emergencia?
+          - link "Acceso de Emergencia QR" [ref=e73] [cursor=pointer]:
+            - /url: /emergency
+            - button "Acceso de Emergencia QR" [ref=e74]
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]:
+    - img [ref=e81] [cursor=pointer]
+  - alert [ref=e85]
+```

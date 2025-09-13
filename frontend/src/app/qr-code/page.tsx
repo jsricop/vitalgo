@@ -21,6 +21,8 @@ import {
   Smartphone
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 interface PatientData {
   id: string
   first_name: string
@@ -61,7 +63,7 @@ export default function QRCodePage() {
       const user = JSON.parse(userData)
       
       // Get current user data from API
-      const userResponse = await fetch('http://localhost:8000/api/v1/auth/me', {
+      const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -76,7 +78,7 @@ export default function QRCodePage() {
       
       // Get or generate QR code
       try {
-        const qrResponse = await fetch('http://localhost:8000/api/v1/qr/generate', {
+        const qrResponse = await fetch(`${API_BASE_URL}/qr/generate`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -151,7 +153,7 @@ export default function QRCodePage() {
         return
       }
 
-      const qrResponse = await fetch('http://localhost:8000/api/v1/qr/generate', {
+      const qrResponse = await fetch(`${API_BASE_URL}/qr/generate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

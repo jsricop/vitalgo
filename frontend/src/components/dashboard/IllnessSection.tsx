@@ -15,11 +15,12 @@ import {
   Stethoscope
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const statusOptions = [
   { value: "ACTIVA", label: "Activa" },
   { value: "CONTROLADA", label: "Controlada" },
-  { value: "CURADA", label: "Curada" },
-  { value: "CRONICA", label: "Crónica" }
+  { value: "CURADA", label: "Curada" }
 ]
 
 interface Illness {
@@ -61,7 +62,6 @@ export function IllnessSection({ enfermedades, onUpdate }: IllnessSectionProps) 
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
       case "ACTIVA": return "bg-red-100 text-red-800 border-red-200"
-      case "CRONICA": return "bg-orange-100 text-orange-800 border-orange-200"
       case "CONTROLADA": return "bg-blue-100 text-blue-800 border-blue-200"
       case "CURADA": return "bg-green-100 text-green-800 border-green-200"
       default: return "bg-gray-100 text-gray-800 border-gray-200"
@@ -157,8 +157,8 @@ export function IllnessSection({ enfermedades, onUpdate }: IllnessSectionProps) 
       }
 
       const url = editingIllness 
-        ? `http://localhost:8000/api/v1/patients/me/illnesses/${editingIllness.id}`
-        : 'http://localhost:8000/api/v1/patients/me/illnesses'
+        ? `${API_BASE_URL}/patients/me/illnesses/${editingIllness.id}`
+        : `${API_BASE_URL}/patients/me/illnesses`
       
       const method = editingIllness ? 'PUT' : 'POST'
 
@@ -200,7 +200,7 @@ export function IllnessSection({ enfermedades, onUpdate }: IllnessSectionProps) 
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/illnesses/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/illnesses/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

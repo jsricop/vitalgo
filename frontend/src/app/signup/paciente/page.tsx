@@ -11,6 +11,8 @@ import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
 import { Heart, ArrowRight, Eye, EyeOff, CheckCircle, X, Stethoscope, Search, ChevronDown } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const tiposDocumento = [
   { value: "CC", label: "Cédula de Ciudadanía" },
   { value: "CE", label: "Cédula de Extranjería" },
@@ -67,7 +69,7 @@ export default function SignupPacientePage() {
     const fetchEpsList = async () => {
       setIsLoadingEps(true)
       try {
-        const response = await fetch('http://localhost:8000/api/v1/auth/eps', {
+        const response = await fetch(`${API_BASE_URL}/auth/eps`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -218,7 +220,7 @@ export default function SignupPacientePage() {
     setDocumentAlert("")
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/auth/check-document?document_type=${documentType}&document_number=${documentNumber}`, {
+      const response = await fetch(`${API_BASE_URL}/auth/check-document?document_type=${documentType}&document_number=${documentNumber}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"
@@ -248,7 +250,7 @@ export default function SignupPacientePage() {
     setEmailAlert("")
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/auth/check-email?email=${encodeURIComponent(email)}`, {
+      const response = await fetch(`${API_BASE_URL}/auth/check-email?email=${encodeURIComponent(email)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"
@@ -288,19 +290,18 @@ export default function SignupPacientePage() {
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     handleInputChange(e)
     
-    // Trigger document check when both type and number are available
-    if (e.target.name === "numeroDocumento" && formData.tipoDocumento) {
-      const timeoutId = setTimeout(() => {
-        checkDocumentExists(formData.tipoDocumento, e.target.value)
-      }, 1000) // Wait 1 second after user stops typing
-      
-      return () => clearTimeout(timeoutId)
-    } else if (e.target.name === "tipoDocumento" && formData.numeroDocumento) {
-      const timeoutId = setTimeout(() => {
-        checkDocumentExists(e.target.value, formData.numeroDocumento)
-      }, 500)
-      
-      return () => clearTimeout(timeoutId)
+    // Clear alerts when user starts typing
+    if (documentAlert) {
+      setDocumentAlert("")
+    }
+  }
+
+  const handleDocumentBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    // Trigger document check only when user leaves the field
+    if (e.target.name === "numeroDocumento" && formData.tipoDocumento && e.target.value) {
+      checkDocumentExists(formData.tipoDocumento, e.target.value)
+    } else if (e.target.name === "tipoDocumento" && formData.numeroDocumento && e.target.value) {
+      checkDocumentExists(e.target.value, formData.numeroDocumento)
     }
   }
 
@@ -372,7 +373,7 @@ export default function SignupPacientePage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/auth/register/patient", {
+      const response = await fetch(`${API_BASE_URL}/auth/register/patient`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -417,7 +418,7 @@ export default function SignupPacientePage() {
       console.log("Registro exitoso:", data)
 
       // Hacer login automático después del registro
-      const loginResponse = await fetch("http://localhost:8000/api/v1/auth/login", {
+      const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -464,17 +465,6 @@ export default function SignupPacientePage() {
         </div>
         <div className="max-w-md w-full space-y-8 relative z-10">
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-              <img 
-                src="/logoh-blue-light-background.png" 
-                alt="VitalGo Logo" 
-                className="h-12 w-auto"
-              />
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-vitalgo-dark">VitalGo</span>
-                <span className="text-xs text-gray-600">Diagnóstico rápido y atención prioritaria</span>
-              </div>
-            </Link>
             <h1 className="text-3xl font-light text-vitalgo-dark mb-2">
               Únete a VitalGo
             </h1>
@@ -542,6 +532,7 @@ export default function SignupPacientePage() {
                     placeholder="Selecciona"
                     value={formData.tipoDocumento}
                     onChange={handleDocumentChange}
+                    onBlur={handleDocumentBlur}
                     error={errors.tipoDocumento}
                     required
                   />
@@ -554,6 +545,7 @@ export default function SignupPacientePage() {
                       placeholder="1234567890"
                       value={formData.numeroDocumento}
                       onChange={handleDocumentChange}
+                      onBlur={handleDocumentBlur}
                       error={errors.numeroDocumento}
                       required
                     />
@@ -761,7 +753,18 @@ export default function SignupPacientePage() {
               </div>
             </CardContent>
           </Card>
+          <div className="max-w-md w-full space-y-8 relative z-10">
+          <div className="text-center">
+            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
+              <img 
+                src="/logoh-blue-light-background.png" 
+                alt="VitalGo Logo" 
+                className="h-12 w-auto"
+              />
+            </Link>
+          </div>
         </div>
+        </div>        
       </div>
 
       {/* Modal de éxito */}

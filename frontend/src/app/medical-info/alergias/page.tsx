@@ -20,6 +20,8 @@ import {
   AlertTriangle
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 const severidadOptions = [
   { value: "BAJA", label: "Baja" },
   { value: "MEDIA", label: "Media" },
@@ -74,7 +76,7 @@ export default function AlergiasPage() {
       setUser(parsedUser)
 
       // Load allergies
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/allergies`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/allergies`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -142,7 +144,7 @@ export default function AlergiasPage() {
 
       if (editingAlergia) {
         // Actualizar alergia existente
-        const response = await fetch(`http://localhost:8000/api/v1/patients/me/allergies/${editingAlergia.id}`, {
+        const response = await fetch(`${API_BASE_URL}/patients/me/allergies/${editingAlergia.id}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -161,7 +163,7 @@ export default function AlergiasPage() {
         ))
       } else {
         // Crear nueva alergia
-        const response = await fetch(`http://localhost:8000/api/v1/patients/me/allergies`, {
+        const response = await fetch(`${API_BASE_URL}/patients/me/allergies`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -216,7 +218,7 @@ export default function AlergiasPage() {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/allergies/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/allergies/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -284,7 +286,7 @@ export default function AlergiasPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-4 mb-4">
-              <Link href="/dashboard">
+              <Link href="/medical-info">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Volver

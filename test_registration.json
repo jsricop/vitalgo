@@ -1,0 +1,17 @@
+{
+  "document_type": "CC",
+  "document_number": "98765432", 
+  "email": "test.patient.new@example.com",
+  "password": "TestPass123",
+  "first_name": "Test",
+  "last_name": "Patient", 
+  "phone": "+57300123456",
+  "birth_date": "1990-01-01",
+  "gender": "M",
+  "blood_type": "O+",
+  "eps": "SURA",
+  "emergency_contact_name": "Contact Person",
+  "emergency_contact_phone": "+57300987654",
+  "address": "Calle 123 #45-67",
+  "city": "Bogotá"
+}

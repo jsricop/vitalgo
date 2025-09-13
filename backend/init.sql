@@ -222,7 +222,7 @@ CREATE TRIGGER update_surgeries_updated_at BEFORE UPDATE ON surgeries
 CREATE TRIGGER update_qr_codes_updated_at BEFORE UPDATE ON patient_qr_codes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert initial EPS data
+-- Insert initial EPS data (idempotent)
 INSERT INTO eps (name, code, phone, website) VALUES
 ('SURA', 'EPS001', '+57-1-560-1234', 'https://www.sura.com'),
 ('Nueva EPS', 'EPS002', '+57-1-489-5000', 'https://www.nuevaeps.com.co'),
@@ -233,12 +233,14 @@ INSERT INTO eps (name, code, phone, website) VALUES
 ('Coomeva EPS', 'EPS007', '+57-2-333-0000', 'https://www.coomeva.com.co'),
 ('Cafesalud', 'EPS008', '+57-1-756-5656', 'https://www.cafesalud.com.co'),
 ('Cruz Blanca', 'EPS009', '+57-1-307-9999', 'https://www.cruzblancaeps.com'),
-('Medimás', 'EPS010', '+57-1-307-8888', 'https://www.medimas.com.co');
+('Medimás', 'EPS010', '+57-1-307-8888', 'https://www.medimas.com.co')
+ON CONFLICT (name) DO NOTHING;
 
--- Insert sample admin user (password: VitalGo2024!)
+-- Insert sample admin user (password: VitalGo2024!) - idempotent
 -- Note: This is a hashed password, in production use proper password hashing
 INSERT INTO users (email, password_hash, first_name, last_name, role, status, email_verified) VALUES
-('admin@vitalgo.app', '$2b$12$kH7/iZxdkJ3.XsxI6yQBr.vFnxBmGQB4.z8OY7Qx0YPmVGHwFDqIq', 'VitalGo', 'Administrator', 'admin', 'active', TRUE);
+('admin@vitalgo.app', '$2b$12$kH7/iZxdkJ3.XsxI6yQBr.vFnxBmGQB4.z8OY7Qx0YPmVGHwFDqIq', 'VitalGo', 'Administrator', 'admin', 'active', TRUE)
+ON CONFLICT (email) DO NOTHING;
 
 -- Add helpful comments
 COMMENT ON TABLE users IS 'Main users table containing authentication and basic user information';

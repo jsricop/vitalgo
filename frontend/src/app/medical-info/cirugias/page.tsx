@@ -21,6 +21,8 @@ import {
   MapPin
 } from "lucide-react"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '${API_BASE_URL}'
+
 interface Surgery {
   id: string
   surgery_name: string
@@ -67,7 +69,7 @@ export default function CirugiasPage() {
       setUser(parsedUser)
 
       // Load surgeries
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/surgeries`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -135,7 +137,7 @@ export default function CirugiasPage() {
 
       if (editingCirugia) {
         // Actualizar cirugía existente
-        const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries/${editingCirugia.id}`, {
+        const response = await fetch(`${API_BASE_URL}/patients/me/surgeries/${editingCirugia.id}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -154,7 +156,7 @@ export default function CirugiasPage() {
         ))
       } else {
         // Crear nueva cirugía
-        const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries`, {
+        const response = await fetch(`${API_BASE_URL}/patients/me/surgeries`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -214,7 +216,7 @@ export default function CirugiasPage() {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/patients/me/surgeries/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/patients/me/surgeries/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -285,7 +287,7 @@ export default function CirugiasPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-4 mb-4">
-              <Link href="/dashboard">
+              <Link href="/medical-info">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Volver

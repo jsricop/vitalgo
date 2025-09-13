@@ -10,7 +10,6 @@ import { Spinner } from "@/shared/components/atoms/spinner"
 import { MainLayout } from "@/shared/components/templates/main-layout"
 import { 
   Heart, 
-  ArrowRight, 
   Plus, 
   X, 
   Activity, 
@@ -19,6 +18,8 @@ import {
   Save,
   SkipForward
 } from "lucide-react"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 // Opciones para formularios
 const severidades = [
@@ -179,7 +180,7 @@ export default function CompleteMedicalProfilePage() {
       // Enviar alergias
       for (const allergy of allergies) {
         if (allergy.allergen.trim()) {
-          const response = await fetch('http://localhost:8000/api/v1/patients/me/allergies', {
+          const response = await fetch(`${API_BASE_URL}/patients/me/allergies`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -196,7 +197,7 @@ export default function CompleteMedicalProfilePage() {
       // Enviar enfermedades
       for (const illness of illnesses) {
         if (illness.name.trim()) {
-          const response = await fetch('http://localhost:8000/api/v1/patients/me/illnesses', {
+          const response = await fetch(`${API_BASE_URL}/patients/me/illnesses`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -213,7 +214,7 @@ export default function CompleteMedicalProfilePage() {
       // Enviar cirugías
       for (const surgery of surgeries) {
         if (surgery.name.trim()) {
-          const response = await fetch('http://localhost:8000/api/v1/patients/me/surgeries', {
+          const response = await fetch(`${API_BASE_URL}/patients/me/surgeries`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -296,7 +297,7 @@ export default function CompleteMedicalProfilePage() {
               <CardContent>
                 {allergies.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">
-                    No has agregado alergias. Haz clic en "Agregar Alergia" si tienes alguna.
+                    No has agregado alergias. Haz clic en &ldquo;Agregar Alergia&rdquo; si tienes alguna.
                   </p>
                 ) : (
                   <div className="space-y-6">
@@ -393,7 +394,7 @@ export default function CompleteMedicalProfilePage() {
               <CardContent>
                 {illnesses.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">
-                    No has agregado enfermedades. Haz clic en "Agregar Enfermedad" si tienes alguna condición médica.
+                    No has agregado enfermedades. Haz clic en &ldquo;Agregar Enfermedad&rdquo; si tienes alguna condición médica.
                   </p>
                 ) : (
                   <div className="space-y-6">
@@ -510,7 +511,7 @@ export default function CompleteMedicalProfilePage() {
               <CardContent>
                 {surgeries.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">
-                    No has agregado cirugías. Haz clic en "Agregar Cirugía" si has tenido alguna intervención quirúrgica.
+                    No has agregado cirugías. Haz clic en &ldquo;Agregar Cirugía&rdquo; si has tenido alguna intervención quirúrgica.
                   </p>
                 ) : (
                   <div className="space-y-6">

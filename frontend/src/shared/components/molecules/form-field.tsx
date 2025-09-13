@@ -36,6 +36,7 @@ interface InputFieldProps extends FormFieldProps {
   placeholder?: string
   value?: string
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void
   name?: string
 }
 
@@ -71,6 +72,7 @@ interface SelectFieldProps extends FormFieldProps {
   placeholder?: string
   value?: string
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void
   name?: string
 }
 
