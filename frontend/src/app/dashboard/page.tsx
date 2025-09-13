@@ -26,9 +26,10 @@ import {
   AlertTriangle,
   History,
   Eye,
-  FileText,
   TrendingUp
 } from "lucide-react"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 // Types for real data
 interface Patient {
@@ -42,9 +43,9 @@ interface Patient {
   created_at: string
 }
 
-interface PatientData {
-  user: Patient
-}
+// interface PatientData {
+//   user: Patient
+// }
 
 // Fallback data while loading
 const loadingPatient = {
@@ -74,7 +75,7 @@ export default function DashboardPage() {
   const fetchMedicalData = async (token: string) => {
     try {
       // Fetch allergies
-      const allergiesResponse = await fetch('http://localhost:8000/api/v1/patients/me/allergies', {
+      const allergiesResponse = await fetch(`${API_BASE_URL}/patients/me/allergies`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -82,7 +83,7 @@ export default function DashboardPage() {
       })
 
       // Fetch illnesses
-      const illnessesResponse = await fetch('http://localhost:8000/api/v1/patients/me/illnesses', {
+      const illnessesResponse = await fetch(`${API_BASE_URL}/patients/me/illnesses`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -90,7 +91,7 @@ export default function DashboardPage() {
       })
 
       // Fetch surgeries
-      const surgeriesResponse = await fetch('http://localhost:8000/api/v1/patients/me/surgeries', {
+      const surgeriesResponse = await fetch(`${API_BASE_URL}/patients/me/surgeries`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -123,7 +124,7 @@ export default function DashboardPage() {
 
   const fetchParamedicScanHistory = async (token: string) => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/qr/paramedic/scan-history', {
+      const response = await fetch(`${API_BASE_URL}/qr/paramedic/scan-history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -156,7 +157,7 @@ export default function DashboardPage() {
         const user = JSON.parse(userData)
         
         // Fetch current user data from API to get fresh data
-        const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -172,19 +173,84 @@ export default function DashboardPage() {
         // Set user role
         setUserRole(currentUser.role)
         
-        // Update patient data with real information
-        setPatient({
-          id: currentUser.id,
-          nombre: `${currentUser.first_name} ${currentUser.last_name}`,
-          email: currentUser.email,
-          tipo_documento: "CC", // Default for now
-          numero_documento: "********", // Hidden for security
-          telefono: currentUser.phone,
-          fecha_nacimiento: "1990-01-01", // Default for now
-          tipo_sangre: "O+", // Default for now
-          eps: "N/A", // Default for now
-          created_at: currentUser.created_at
-        })
+        // If user is a patient, fetch complete patient data
+        if (currentUser.role === 'patient') {
+          try {
+            const patientResponse = await fetch(`${API_BASE_URL}/patients/me/summary`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            
+            if (patientResponse.ok) {
+              const patientData = await patientResponse.json()
+              const patientInfo = patientData.patient
+              
+              // Update patient data with real information from database
+              setPatient({
+                id: currentUser.id,
+                nombre: `${currentUser.first_name} ${currentUser.last_name}`,
+                email: currentUser.email,
+                tipo_documento: patientInfo.document_type || "CC",
+                numero_documento: patientInfo.document_number || "N/A",
+                telefono: currentUser.phone,
+                fecha_nacimiento: patientInfo.birth_date || "N/A",
+                tipo_sangre: patientInfo.blood_type || "N/A",
+                eps: patientInfo.eps || "N/A",
+                created_at: currentUser.created_at
+              })
+              
+              // Also update medical data from summary
+              if (patientData.allergies) setAlergias(patientData.allergies)
+              if (patientData.illnesses) setEnfermedades(patientData.illnesses)  
+              if (patientData.surgeries) setCirugias(patientData.surgeries)
+            } else {
+              // Fallback to basic user data if patient summary fails
+              setPatient({
+                id: currentUser.id,
+                nombre: `${currentUser.first_name} ${currentUser.last_name}`,
+                email: currentUser.email,
+                tipo_documento: "N/A",
+                numero_documento: "N/A", 
+                telefono: currentUser.phone,
+                fecha_nacimiento: "N/A",
+                tipo_sangre: "N/A",
+                eps: "N/A",
+                created_at: currentUser.created_at
+              })
+            }
+          } catch (error) {
+            console.error('Error fetching patient data:', error)
+            // Fallback to basic user data
+            setPatient({
+              id: currentUser.id,
+              nombre: `${currentUser.first_name} ${currentUser.last_name}`,
+              email: currentUser.email,
+              tipo_documento: "N/A",
+              numero_documento: "N/A",
+              telefono: currentUser.phone,
+              fecha_nacimiento: "N/A",
+              tipo_sangre: "N/A", 
+              eps: "N/A",
+              created_at: currentUser.created_at
+            })
+          }
+        } else {
+          // For non-patient users, use basic info
+          setPatient({
+            id: currentUser.id,
+            nombre: `${currentUser.first_name} ${currentUser.last_name}`,
+            email: currentUser.email,
+            tipo_documento: "N/A",
+            numero_documento: "N/A",
+            telefono: currentUser.phone,
+            fecha_nacimiento: "N/A",
+            tipo_sangre: "N/A",
+            eps: "N/A", 
+            created_at: currentUser.created_at
+          })
+        }
 
         // Fetch medical data only for patients
         if (currentUser.role === 'patient') {
