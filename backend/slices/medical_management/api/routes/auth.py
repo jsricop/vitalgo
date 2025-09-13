@@ -17,6 +17,8 @@ from ...application.commands import CreateUserCommand, CreatePatientCommand, Cre
 from ...application.queries import ValidateUserCredentialsQuery, GetUserByEmailQuery
 from ...application.handlers.patient_handlers import PatientCommandHandlers, PatientQueryHandlers
 from slices.core.config import settings
+from slices.shared.infrastructure.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Pydantic models for API
 class UserRegistrationRequest(BaseModel):
@@ -718,42 +720,36 @@ async def change_password(
 @router.get("/eps", response_model=list[EPSResponse])
 async def get_eps_list(
     regime_type: Optional[str] = None,
-    status: bool = True
+    status: bool = True,
+    db: AsyncSession = Depends(get_db)
 ):
     """Get list of EPS (Entidades Promotoras de Salud) available in Colombia"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        from sqlalchemy import text
         
-        # Base query
-        query = "SELECT id, name, code, regime_type, is_active AS status FROM eps WHERE is_active = %s"
-        params = [status]
+        # Base query using SQLAlchemy text for async execution
+        query = "SELECT id, name, code, regime_type, is_active AS status FROM eps WHERE is_active = :status"
+        params = {"status": status}
         
         # Add regime_type filter if provided
         if regime_type and regime_type in ["contributivo", "subsidiado", "ambos"]:
-            query += " AND (regime_type = %s OR regime_type = 'ambos')"
-            params.append(regime_type)
+            query += " AND (regime_type = :regime_type OR regime_type = 'ambos')"
+            params["regime_type"] = regime_type
         
         query += " ORDER BY name ASC"
         
-        cursor.execute(query, params)
-        eps_list = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
+        result = await db.execute(text(query), params)
+        eps_list = result.fetchall()
         
         return [EPSResponse(
-            id=eps["id"],
-            name=eps["name"],
-            code=eps["code"],
-            regime_type=eps["regime_type"],
-            status=eps["status"]
+            id=str(eps.id),
+            name=eps.name,
+            code=eps.code or "",
+            regime_type=eps.regime_type or "contributivo",
+            status=eps.status
         ) for eps in eps_list]
         
     except Exception as e:
-        if 'conn' in locals():
-            cursor.close()
-            conn.close()
         raise HTTPException(status_code=500, detail=f"Error retrieving EPS list: {str(e)}")
 
 
